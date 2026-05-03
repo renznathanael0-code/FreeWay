@@ -1,6 +1,6 @@
 // --- Globale Variablen ---
 // Dies ist dein persönlicher Server-Platz (ID am Ende ist für dich generiert)
-const URL = "https://jsonblob.com/api/jsonBlob/1367468132923056128";
+const URL = "https://api.myjson.online/v1/records/064e624c-9f64-4e14-9b2f-2c67675e0df3";
 let map;
 let myLocationMarker;
 let reportsData = []; // Hier speichern wir die reinen Daten (Lat, Lng, Text...)
@@ -67,45 +67,40 @@ function finalizeReport(lat, lng, typ, farbe) {
 
 // --- 4. Server-Kommunikation ---
 
+// 1. Speichern (Wir packen die Liste in ein Objekt { "data": ... })
 async function saveReportsToServer() {
-  drawMarkersOnMap(); // Lokal sofort anzeigen
+  drawMarkersOnMap();
 
   try {
     const response = await fetch(URL, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json' // Hinzugefügt: Sagt dem Server, wir wollen JSON
-      },
-      body: JSON.stringify(reportsData)
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: reportsData }) // <--- Hier ist die wichtige Änderung!
     });
 
     if (response.ok) {
-      console.log("✅ Server hat die Daten angenommen!");
-    } else {
-      // Wenn der Server mit einem Fehler antwortet (z.B. 404 oder 401)
-      const errorText = await response.text();
-      console.log("❌ Server-Antwort: " + response.status + " - " + errorText);
+      console.log("✅ Erfolgreich auf dem neuen Server gespeichert!");
     }
   } catch (err) {
-    console.log("🌐 Netzwerk-Fehler: Eventuell blockiert der Browser die Anfrage.");
+    console.log("❌ Fehler beim Senden.");
   }
 }
 
-
+// 2. Laden (Wir holen die Liste wieder aus dem Objekt heraus)
 async function loadReportsFromServer() {
   try {
     const response = await fetch(URL);
     if (response.ok) {
-      const data = await response.json();
-      if (Array.isArray(data)) {
-        reportsData = data;
+      const result = await response.json();
+      // Wir nehmen nur den Teil "data" aus dem Ergebnis
+      if (result && result.data && Array.isArray(result.data)) {
+        reportsData = result.data;
         drawMarkersOnMap();
-        console.log("📡 Daten vom Server empfangen");
+        console.log("📡 Daten vom Server geladen!");
       }
     }
   } catch (err) {
-    console.log("Noch keine Daten auf dem Server.");
+    console.log("Noch keine Daten vorhanden.");
   }
 }
 
