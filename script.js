@@ -68,20 +68,30 @@ function finalizeReport(lat, lng, typ, farbe) {
 // --- 4. Server-Kommunikation ---
 
 async function saveReportsToServer() {
-  // Erst mal Karte lokal zeichnen, damit es schnell aussieht
-  drawMarkersOnMap();
+  drawMarkersOnMap(); // Lokal sofort anzeigen
 
   try {
     const response = await fetch(URL, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json' // Hinzugefügt: Sagt dem Server, wir wollen JSON
+      },
       body: JSON.stringify(reportsData)
     });
-    if (response.ok) console.log("✅ Erfolgreich auf Server gespeichert");
+
+    if (response.ok) {
+      console.log("✅ Server hat die Daten angenommen!");
+    } else {
+      // Wenn der Server mit einem Fehler antwortet (z.B. 404 oder 401)
+      const errorText = await response.text();
+      console.log("❌ Server-Antwort: " + response.status + " - " + errorText);
+    }
   } catch (err) {
-    console.error("❌ Server-Fehler beim Speichern");
+    console.log("🌐 Netzwerk-Fehler: Eventuell blockiert der Browser die Anfrage.");
   }
 }
+
 
 async function loadReportsFromServer() {
   try {
