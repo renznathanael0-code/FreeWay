@@ -1,6 +1,6 @@
 // --- Globale Variablen ---
 // Dies ist dein persönlicher Server-Platz (ID am Ende ist für dich generiert)
-const URL = "https://api.myjson.online/v1/records/5370d024-e696-4148-8980-0a2a4661858a";
+const URL = "https://jsonstorage.net/api/items/freeway-stuttgart-2026-v1";
 let map;
 let myLocationMarker;
 let reportsData = []; // Hier speichern wir die reinen Daten (Lat, Lng, Text...)
@@ -67,7 +67,7 @@ function finalizeReport(lat, lng, typ, farbe) {
 
 // --- 4. Server-Kommunikation ---
 
-// 1. Speichern (Wir packen die Liste in ein Objekt { "data": ... })
+// SPEICHERN
 async function saveReportsToServer() {
   drawMarkersOnMap();
 
@@ -75,32 +75,30 @@ async function saveReportsToServer() {
     const response = await fetch(URL, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data: reportsData }) // <--- Hier ist die wichtige Änderung!
+      body: JSON.stringify({ reports: reportsData })
     });
 
     if (response.ok) {
-      console.log("✅ Erfolgreich auf dem neuen Server gespeichert!");
+      console.log("🚀 ENDLICH! Es hat geklappt!");
     }
   } catch (err) {
-    console.log("❌ Fehler beim Senden.");
+    console.log("Fehler: " + err);
   }
 }
 
-// 2. Laden (Wir holen die Liste wieder aus dem Objekt heraus)
 async function loadReportsFromServer() {
   try {
     const response = await fetch(URL);
     if (response.ok) {
       const result = await response.json();
-      // Wir nehmen nur den Teil "data" aus dem Ergebnis
-      if (result && result.data && Array.isArray(result.data)) {
-        reportsData = result.data;
+      if (result && result.reports) {
+        reportsData = result.reports;
         drawMarkersOnMap();
-        console.log("📡 Daten vom Server geladen!");
+        console.log("📡 Daten geladen!");
       }
     }
   } catch (err) {
-    console.log("Noch keine Daten vorhanden.");
+    console.log("Noch leer.");
   }
 }
 
