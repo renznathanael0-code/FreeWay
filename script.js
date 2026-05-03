@@ -1,6 +1,6 @@
 // --- Globale Variablen ---
 // Dies ist dein persönlicher Server-Platz (ID am Ende ist für dich generiert)
-const URL = "https://api.myjson.online/v1/records/064e624c-9f64-4e14-9b2f-2c67675e0df3";
+const URL = "https://api.myjson.online/v1/records/5370d024-e696-4148-8980-0a2a4661858a";
 let map;
 let myLocationMarker;
 let reportsData = []; // Hier speichern wir die reinen Daten (Lat, Lng, Text...)
