@@ -122,7 +122,7 @@ function drawMarkersOnMap() {
         <p><i>"${r.kommentar || 'Kein Kommentar'}"</i></p>
         <button onclick="deleteReport('${r.id}')" style="color:#e74c3c; border:none; background:none; font-weight:bold; cursor:pointer;">🗑 Löschen</button>
       </div>
-    `);
+    `); 
     activeMarkers[r.id] = m;
   });
 }
