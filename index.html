@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FreeWay - Barrierefreie Navigation</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="map"></div>
+<div class="controls">
+  <!-- Der neue Hinweistext -->
+  <div class="controls-hint">
+    📍 Tippe auf ein Symbol, um ein Hindernis an deinem <b>aktuellen Standort</b> zu melden:
+  </div>
+
+  <div class="button-grid">
+    <button id="treppen" onclick="sendReport('Treppe', '#E74C3C')">🪜 Treppe</button>
+    <button id="defekt" onclick="sendReport('Aufzug defekt', '#E67E22')">🛗 Aufzug</button>
+    <button id="baustelle" onclick="sendReport('Baustelle', '#F1C40F')">🚧 Baustelle</button>
+  </div>
+</div>
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
+
