@@ -1,13 +1,21 @@
 // --- Globale Variablen ---
-// Dies ist dein persönlicher Server-Platz (ID am Ende ist für dich generiert)
-const localDB = new PouchDB('freeway_stuttgart');
-const remoteDB = new PouchDB('https://96f79986-778e-4903-8d05-950c459f0f97-bluemix.cloudantnosqldb.appdomain.cloud/freeway-global');
+// Firebase Setup (Die "Welt-Cloud")
+// --- Firebase Setup Korrektur ---
+const firebaseConfig = {
+  databaseURL: "https://freeway-stuttgart-default-rtdb.europe-west1.firebasedatabase.app"
+};
+
+// Initialisierung
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
+const db = firebase.database();
 
 
 let map;
 let myLocationMarker;
-let reportsData = []; // Hier speichern wir die reinen Daten (Lat, Lng, Text...)
-let activeMarkers = {}; // Hier speichern wir die Leaflet-Marker-Objekte zum Löschen
+let reportsData = []; 
+let activeMarkers = {}; 
 
 // --- 1. Karte initialisieren ---
 function initMap() {
@@ -17,10 +25,10 @@ function initMap() {
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
 
-  // WICHTIG: Erst wenn die Karte "ready" ist, laden wir die Punkte
+  // Sobald die Karte bereit ist, starten wir den Live-Sync
   map.whenReady(() => {
-    console.log("🗺️ Karte bereit, lade Daten...");
-    loadFromLocal().then(() => initSync());
+    console.log("🗺️ Karte bereit, verbinde mit Welt-Cloud...");
+    initSync();
   });
 
   map.locate({setView: true, maxZoom: 16});
@@ -57,96 +65,44 @@ function openCommentPopup(lat, lng, typ, farbe) {
   L.popup().setLatLng([lat, lng]).setContent(content).openOn(map);
 }
 
-// --- 3. Speichern-Logik (Lokal -> Server) ---
+// --- 3. Speichern-Logik ---
 function finalizeReport(lat, lng, typ, farbe) {
   const kommentar = document.getElementById('report-comment').value;
   const id = "ID_" + Date.now();
   const zeit = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
-  // In die Liste hinzufügen
+  // In die lokale Liste hinzufügen
   reportsData.push({ id, lat, lng, typ, kommentar, zeit, farbe });
   
-  // Sofort zum Server schicken
+  // In die Firebase Cloud schicken
   saveReportsToServer(); 
   map.closePopup();
 }
 
-// --- 4. Server-Kommunikation ---
-
-// --- Neue Speicher-Logik ---
-
-// --- 3. Speichern mit Gewalt (Überschreibt Konflikte) ---
-async function saveReportsToServer() {
-  try {
-    const doc = { _id: 'reports_masterlist', data: reportsData };
-    
-    // Wir holen uns IMMER die aktuellste Revisions-Nummer, bevor wir speichern
-    const oldDoc = await localDB.get('reports_masterlist').catch(() => null);
-    if (oldDoc) doc._rev = oldDoc._rev;
-
-    await localDB.put(doc);
-    console.log("💾 Lokal gespeichert!");
-    drawMarkersOnMap();
-  } catch (err) {
-    // Wenn es kracht (Conflict), löschen wir lokal und erzwingen den Sync
-    console.log("Konflikt! Bereinige Datenbank...");
-    await localDB.destroy();
-    location.reload(); // Seite neu laden und frisch starten
-  }
+function saveReportsToServer() {
+  db.ref('marker_liste').set(reportsData)
+    .then(() => console.log("🚀 Weltweit gespeichert!"))
+    .catch(e => console.log("Fehler beim Speichern: " + e.message));
 }
 
-
-
-// Startet den Abgleich mit anderen Geräten
+// --- 4. Live-Sync (Der wichtigste Teil) ---
 function initSync() {
-  localDB.sync(remoteDB, {
-    live: true,
-    retry: true
-  }).on('change', function (info) {
-    console.log("🔄 Update empfangen!");
-    // Wir holen uns die neuesten Daten und zeichnen sie sofort
-    loadFromLocal(); 
-  }).on('error', function (err) {
-    console.log("📡 Sync-Fehler (evtl. Offline)");
+  // .on('value', ...) sorgt dafür, dass die App SOFORT reagiert, 
+  // wenn irgendwo auf der Welt ein neuer Marker gesetzt wird.
+  db.ref('marker_liste').on('value', (snapshot) => {
+    const data = snapshot.val();
+    if (data) {
+      reportsData = data;
+      console.log("🌍 Neue Daten aus der Cloud erhalten!");
+      drawMarkersOnMap();
+    } else {
+      console.log("☁️ Cloud ist noch leer.");
+    }
   });
 }
 
-// Lädt die Daten aus dem Speicher des iPads/Handys
-// --- 4. Laden mit Cloud-Backup ---
-async function loadFromLocal() {
-  // Erstmal versuchen, von der Welt-Cloud zu ziehen
-  try {
-    const remoteDoc = await remoteDB.get('reports_masterlist');
-    if (remoteDoc) {
-      reportsData = remoteDoc.data;
-      // Lokal spiegeln
-      const localDoc = await localDB.get('reports_masterlist').catch(() => null);
-      await localDB.put({
-        _id: 'reports_masterlist',
-        data: reportsData,
-        _rev: localDoc ? localDoc._rev : undefined
-      }).catch(() => null);
-      
-      console.log("🌍 Cloud-Daten sind da!");
-      drawMarkersOnMap();
-      return;
-    }
-  } catch (e) { console.log("Cloud-Abfrage fehlgeschlagen, probiere lokal..."); }
-
-  // Fallback: Wenn Cloud nicht geht, dann lokal
-  try {
-    const doc = await localDB.get('reports_masterlist');
-    if (doc && doc.data) {
-      reportsData = doc.data;
-      drawMarkersOnMap();
-    }
-  } catch (err) { console.log("Nichts zu laden."); }
-}
-
-
 // Zeichnet alle Marker aus der reportsData-Liste neu
 function drawMarkersOnMap() {
-  // Falls die Karte aus irgendeinem Grund noch nicht da ist: Abbrechen!
   if (!map) return; 
 
   // Erst mal alle alten Marker von der Karte entfernen
@@ -182,14 +138,5 @@ function deleteReport(id) {
   }
 }
 
-function sendReport(typ, farbe) {
-  if (myLocationMarker) {
-    const pos = myLocationMarker.getLatLng();
-    openCommentPopup(pos.lat, pos.lng, typ, farbe);
-  } else {
-    alert("Standort wird gesucht...");
-  }
-}
-
-// --- 5. Automatisierung ---
+// --- 5. Start ---
 window.addEventListener('load', initMap);
