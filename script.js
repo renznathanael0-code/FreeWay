@@ -68,20 +68,35 @@ async function saveReportsToServer() {
   try {
     const oldDoc = await localDB.get('reports_masterlist').catch(() => null);
     if (oldDoc) doc._rev = oldDoc._rev;
+    
     await localDB.put(doc);
     console.log("💾 Lokal gesichert!");
+    
+    // Manueller Push zur Cloud, damit es sofort beim anderen Gerät ankommt
+    await localDB.replicate.to(remoteDB);
+    console.log("🚀 Daten zur Cloud hochgeladen!");
+    
     drawMarkersOnMap();
-  } catch (err) { console.log("Fehler beim Speichern: " + err); }
+  } catch (err) { 
+    console.log("Fehler beim Speichern: " + err); 
+  }
 }
+
 
 // --- 4. Sync & Laden ---
 function initSync() {
-  localDB.sync(remoteDB, { live: true, retry: true })
+  // Push: Lokal -> Cloud
+  localDB.replicate.to(remoteDB, { live: true, retry: true });
+  
+  // Pull: Cloud -> Lokal
+  localDB.replicate.from(remoteDB, { live: true, retry: true })
     .on('change', function(info) {
-      console.log("🔄 Update empfangen!");
-      loadFromLocal(); // Holt sich die neuen Daten und zeichnet neu
+      console.log("📥 JEMAND HAT WAS GEÄNDERT! Lade neu...");
+      loadFromLocal();
     })
-    .on('error', function(err) { console.log("📡 Sync-Pause (Offline?)"); });
+    .on('error', function(err) {
+      console.log("Sync-Fehler: " + err);
+    });
 }
 
 async function loadFromLocal() {
