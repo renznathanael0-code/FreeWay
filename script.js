@@ -17,9 +17,11 @@ function initMap() {
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
 
-// Daten laden und Sync starten
-loadFromLocal().then(() => initSync());
-
+  // WICHTIG: Erst wenn die Karte "ready" ist, laden wir die Punkte
+  map.whenReady(() => {
+    console.log("🗺️ Karte bereit, lade Daten...");
+    loadFromLocal().then(() => initSync());
+  });
 
   map.locate({setView: true, maxZoom: 16});
 
@@ -120,6 +122,9 @@ async function loadFromLocal() {
 
 // Zeichnet alle Marker aus der reportsData-Liste neu
 function drawMarkersOnMap() {
+  // Falls die Karte aus irgendeinem Grund noch nicht da ist: Abbrechen!
+  if (!map) return; 
+
   // Erst mal alle alten Marker von der Karte entfernen
   for (let id in activeMarkers) {
     map.removeLayer(activeMarkers[id]);
