@@ -1,6 +1,6 @@
 // --- Globale Variablen ---
 // Dies ist dein persönlicher Server-Platz (ID am Ende ist für dich generiert)
-const URL = "https://jsonstorage.net/api/items/freeway-stuttgart-2026-v1";
+const URL = "https://api.npoint.io/e24e10694f7f44249b57"; 
 let map;
 let myLocationMarker;
 let reportsData = []; // Hier speichern wir die reinen Daten (Lat, Lng, Text...)
@@ -73,16 +73,18 @@ async function saveReportsToServer() {
 
   try {
     const response = await fetch(URL, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reports: reportsData })
+      method: 'POST', // npoint nutzt POST zum Überschreiben
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(reportsData) // Wir schicken nur das nackte Array
     });
 
     if (response.ok) {
-      console.log("🚀 ENDLICH! Es hat geklappt!");
+      console.log("☁️ In der Cloud gespeichert!");
     }
   } catch (err) {
-    console.log("Fehler: " + err);
+    console.log("Cloud-Fehler: " + err);
   }
 }
 
@@ -90,15 +92,15 @@ async function loadReportsFromServer() {
   try {
     const response = await fetch(URL);
     if (response.ok) {
-      const result = await response.json();
-      if (result && result.reports) {
-        reportsData = result.reports;
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        reportsData = data;
         drawMarkersOnMap();
-        console.log("📡 Daten geladen!");
+        console.log("📡 Cloud-Daten geladen!");
       }
     }
   } catch (err) {
-    console.log("Noch leer.");
+    console.log("Cloud noch leer.");
   }
 }
 
