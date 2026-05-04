@@ -61,7 +61,7 @@ function finalizeReport(lat, lng, typ, farbe) {
   reportsData.push({ id, lat, lng, typ, kommentar, zeit, farbe });
   
   // Sofort zum Server schicken
-  saveReportsToServer();
+  saveReportsToServer(); 
   map.closePopup();
 }
 
@@ -89,18 +89,24 @@ async function saveReportsToServer() {
 }
 
 async function loadReportsFromServer() {
+  console.log("Versuche Daten zu laden...");
   try {
     const response = await fetch(URL);
     if (response.ok) {
       const data = await response.json();
-      if (Array.isArray(data)) {
+      if (Array.isArray(data) && data.length > 0) {
         reportsData = data;
-        drawMarkersOnMap();
-        console.log("📡 Cloud-Daten geladen!");
+        console.log("Daten erhalten: ", reportsData.length);
+        
+        // Wir warten 500ms, damit die Karte sicher geladen ist
+        setTimeout(() => {
+            drawMarkersOnMap();
+            console.log("Marker wurden gezeichnet!");
+        }, 500);
       }
     }
   } catch (err) {
-    console.log("Cloud noch leer.");
+    console.log("Cloud-Fehler beim Laden: " + err);
   }
 }
 
@@ -153,3 +159,5 @@ window.addEventListener('load', initMap);
 
 // Alle 15 Sekunden automatisch vom Server laden (für das Team)
 setInterval(loadReportsFromServer, 15000);
+
+loadReportsFromServer();
