@@ -1,49 +1,33 @@
 // --- Globale Variablen ---
-// Firebase Setup (Die "Welt-Cloud")
-// --- Firebase Setup Korrektur ---
-const firebaseConfig = {
-  databaseURL: "https://freeway-stuttgart-default-rtdb.europe-west1.firebasedatabase.app"
-};
-
-// Initialisierung
-if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-}
-const db = firebase.database();
-
-
 let map;
 let myLocationMarker;
-let reportsData = []; 
-let activeMarkers = {}; 
+let reportsData = [];
+let activeMarkers = {};
 
 // --- 1. Karte initialisieren ---
 function initMap() {
   map = L.map('map').setView([51.16, 10.45], 5);
-
+  
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
-
-  // Sobald die Karte bereit ist, starten wir den Live-Sync
-  map.whenReady(() => {
-    console.log("🗺️ Karte bereit, verbinde mit Welt-Cloud...");
-    initSync();
-  });
-
-  map.locate({setView: true, maxZoom: 16});
-
+  
+  // Wir laden die Daten sofort beim Start aus dem Browser-Speicher
+  loadFromStorage();
+  
+  map.locate({ setView: true, maxZoom: 16 });
+  
   map.on('locationfound', function(e) {
     if (myLocationMarker) map.removeLayer(myLocationMarker);
     myLocationMarker = L.marker(e.latlng, { title: 'Du bist hier' }).addTo(map);
   });
-
+  
   map.on('click', function(e) {
     openSelectionPopup(e.latlng);
   });
 }
 
-// --- 2. Auswahl- & Kommentar-Fenster ---
+// --- 2. Auswahl-Popups ---
 function openSelectionPopup(latlng) {
   const content = `
     <div style="font-family: sans-serif; text-align: center;">
@@ -65,78 +49,55 @@ function openCommentPopup(lat, lng, typ, farbe) {
   L.popup().setLatLng([lat, lng]).setContent(content).openOn(map);
 }
 
-// --- 3. Speichern-Logik ---
+// --- 3. Speichern & Laden (Lokal) ---
 function finalizeReport(lat, lng, typ, farbe) {
   const kommentar = document.getElementById('report-comment').value;
   const id = "ID_" + Date.now();
-  const zeit = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-
-  // In die lokale Liste hinzufügen
+  const zeit = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  
   reportsData.push({ id, lat, lng, typ, kommentar, zeit, farbe });
   
-  // In die Firebase Cloud schicken
-  saveReportsToServer(); 
+  saveToStorage();
   map.closePopup();
 }
 
-function saveReportsToServer() {
-  db.ref('marker_liste').set(reportsData)
-    .then(() => console.log("🚀 Weltweit gespeichert!"))
-    .catch(e => console.log("Fehler beim Speichern: " + e.message));
+function saveToStorage() {
+  // Speichert die Liste als Text im Browser
+  localStorage.setItem('my_freeway_data', JSON.stringify(reportsData));
+  console.log("💾 Lokal im Browser gesichert!");
+  drawMarkersOnMap();
 }
 
-// --- 4. Live-Sync (Der wichtigste Teil) ---
-function initSync() {
-  // .on('value', ...) sorgt dafür, dass die App SOFORT reagiert, 
-  // wenn irgendwo auf der Welt ein neuer Marker gesetzt wird.
-  db.ref('marker_liste').on('value', (snapshot) => {
-    const data = snapshot.val();
-    if (data) {
-      reportsData = data;
-      console.log("🌍 Neue Daten aus der Cloud erhalten!");
-      drawMarkersOnMap();
-    } else {
-      console.log("☁️ Cloud ist noch leer.");
-    }
-  });
-}
-
-// Zeichnet alle Marker aus der reportsData-Liste neu
-function drawMarkersOnMap() {
-  if (!map) return; 
-
-  // Erst mal alle alten Marker von der Karte entfernen
-  for (let id in activeMarkers) {
-    map.removeLayer(activeMarkers[id]);
+function loadFromStorage() {
+  const saved = localStorage.getItem('my_freeway_data');
+  if (saved) {
+    reportsData = JSON.parse(saved);
+    console.log("✅ " + reportsData.length + " Marker aus Browser geladen.");
+    drawMarkersOnMap();
   }
-  activeMarkers = {};
+}
 
-  // Alle aus der Liste neu setzen
+// --- 4. Zeichnen ---
+function drawMarkersOnMap() {
+  if (!map) return;
+  for (let id in activeMarkers) { map.removeLayer(activeMarkers[id]); }
+  activeMarkers = {};
+  
   reportsData.forEach(r => {
     const icon = L.divIcon({
       html: `<div style="background-color: ${r.farbe}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.5);"></div>`,
       className: 'custom-marker',
       iconSize: [20, 20]
     });
-
     const m = L.marker([r.lat, r.lng], { icon: icon }).addTo(map);
-    m.bindPopup(`
-      <div style="font-family: sans-serif;">
-        <b>${r.typ}</b><br><small>${r.zeit} Uhr</small>
-        <p><i>"${r.kommentar || 'Kein Kommentar'}"</i></p>
-        <button onclick="deleteReport('${r.id}')" style="color:#e74c3c; border:none; background:none; font-weight:bold; cursor:pointer;">🗑 Löschen</button>
-      </div>
-    `); 
+    m.bindPopup(`<b>${r.typ}</b><br><button onclick="deleteReport('${r.id}')">🗑 Löschen</button>`);
     activeMarkers[r.id] = m;
   });
 }
 
 function deleteReport(id) {
-  if (confirm("Behoben?")) {
-    reportsData = reportsData.filter(r => r.id !== id);
-    saveReportsToServer();
-  }
+  reportsData = reportsData.filter(r => r.id !== id);
+  saveToStorage();
 }
 
-// --- 5. Start ---
 window.addEventListener('load', initMap);
