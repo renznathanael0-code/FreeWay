@@ -109,14 +109,21 @@ function initSync() {
 // Lädt die Daten aus dem Speicher des iPads/Handys
 async function loadFromLocal() {
   try {
-    const doc = await localDB.get('reports_masterlist');
+    // Wir holen das Dokument direkt mit dem neuesten Stand
+    const doc = await localDB.get('reports_masterlist', { conflicts: true });
     if (doc && doc.data) {
       reportsData = doc.data;
-      drawMarkersOnMap();
       console.log("✅ Daten geladen: " + reportsData.length);
+      drawMarkersOnMap();
     }
   } catch (err) {
-    console.log("Noch keine Daten vorhanden.");
+    console.log("DB leer oder Fehler: " + err.status);
+    // Falls das iPad die Daten "vergessen" hat, holen wir sie uns sofort von der Welt-Cloud
+    const remoteDoc = await remoteDB.get('reports_masterlist').catch(() => null);
+    if (remoteDoc) {
+       reportsData = remoteDoc.data;
+       drawMarkersOnMap();
+    }
   }
 }
 
