@@ -75,25 +75,27 @@ function finalizeReport(lat, lng, typ, farbe) {
 
 // --- Neue Speicher-Logik ---
 
+// --- 3. Speichern mit Gewalt (Überschreibt Konflikte) ---
 async function saveReportsToServer() {
-  const doc = {
-    _id: 'reports_masterlist',
-    data: reportsData
-  };
-
   try {
-    // Wir prüfen, ob es die Datei schon gibt (wegen der Revisions-Nummer)
+    const doc = { _id: 'reports_masterlist', data: reportsData };
+    
+    // Wir holen uns IMMER die aktuellste Revisions-Nummer, bevor wir speichern
     const oldDoc = await localDB.get('reports_masterlist').catch(() => null);
     if (oldDoc) doc._rev = oldDoc._rev;
 
-    // Lokal speichern
     await localDB.put(doc);
-    console.log("💾 Lokal gesichert!");
+    console.log("💾 Lokal gespeichert!");
     drawMarkersOnMap();
   } catch (err) {
-    console.log("Fehler beim Speichern: " + err);
+    // Wenn es kracht (Conflict), löschen wir lokal und erzwingen den Sync
+    console.log("Konflikt! Bereinige Datenbank...");
+    await localDB.destroy();
+    location.reload(); // Seite neu laden und frisch starten
   }
 }
+
+
 
 // Startet den Abgleich mit anderen Geräten
 function initSync() {
@@ -110,36 +112,35 @@ function initSync() {
 }
 
 // Lädt die Daten aus dem Speicher des iPads/Handys
+// --- 4. Laden mit Cloud-Backup ---
 async function loadFromLocal() {
+  // Erstmal versuchen, von der Welt-Cloud zu ziehen
   try {
-    // 1. Versuch: Lokale Datenbank (iPad Speicher)
+    const remoteDoc = await remoteDB.get('reports_masterlist');
+    if (remoteDoc) {
+      reportsData = remoteDoc.data;
+      // Lokal spiegeln
+      const localDoc = await localDB.get('reports_masterlist').catch(() => null);
+      await localDB.put({
+        _id: 'reports_masterlist',
+        data: reportsData,
+        _rev: localDoc ? localDoc._rev : undefined
+      }).catch(() => null);
+      
+      console.log("🌍 Cloud-Daten sind da!");
+      drawMarkersOnMap();
+      return;
+    }
+  } catch (e) { console.log("Cloud-Abfrage fehlgeschlagen, probiere lokal..."); }
+
+  // Fallback: Wenn Cloud nicht geht, dann lokal
+  try {
     const doc = await localDB.get('reports_masterlist');
     if (doc && doc.data) {
       reportsData = doc.data;
-      console.log("✅ Lokal geladen: " + reportsData.length);
       drawMarkersOnMap();
     }
-  } catch (err) {
-    console.log("⚠️ Lokal nichts gefunden, frage Cloud...");
-    
-    // 2. Versuch: Direkt bei der remoteDB (Cloud) nachsehen
-    try {
-      const remoteDoc = await remoteDB.get('reports_masterlist');
-      if (remoteDoc && remoteDoc.data) {
-        reportsData = remoteDoc.data;
-        // Speichere die Cloud-Daten direkt lokal ab für das nächste Mal
-        await localDB.put({
-          _id: 'reports_masterlist',
-          data: reportsData
-        }).catch(() => null);
-        
-        console.log("🌍 Cloud-Daten erfolgreich geholt!");
-        drawMarkersOnMap();
-      }
-    } catch (remoteErr) {
-      console.log("❌ Gar keine Daten gefunden (Cloud & Lokal leer)");
-    }
-  }
+  } catch (err) { console.log("Nichts zu laden."); }
 }
 
 
