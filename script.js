@@ -101,31 +101,47 @@ function initSync() {
     live: true,
     retry: true
   }).on('change', function (info) {
-    console.log("🔄 Update von anderem Gerät!");
-    loadFromLocal(); // Karte neu zeichnen, wenn Daten reinkommen
+    console.log("🔄 Update empfangen!");
+    // Wir holen uns die neuesten Daten und zeichnen sie sofort
+    loadFromLocal(); 
+  }).on('error', function (err) {
+    console.log("📡 Sync-Fehler (evtl. Offline)");
   });
 }
 
 // Lädt die Daten aus dem Speicher des iPads/Handys
 async function loadFromLocal() {
   try {
-    // Wir holen das Dokument direkt mit dem neuesten Stand
-    const doc = await localDB.get('reports_masterlist', { conflicts: true });
+    // 1. Versuch: Lokale Datenbank (iPad Speicher)
+    const doc = await localDB.get('reports_masterlist');
     if (doc && doc.data) {
       reportsData = doc.data;
-      console.log("✅ Daten geladen: " + reportsData.length);
+      console.log("✅ Lokal geladen: " + reportsData.length);
       drawMarkersOnMap();
     }
   } catch (err) {
-    console.log("DB leer oder Fehler: " + err.status);
-    // Falls das iPad die Daten "vergessen" hat, holen wir sie uns sofort von der Welt-Cloud
-    const remoteDoc = await remoteDB.get('reports_masterlist').catch(() => null);
-    if (remoteDoc) {
-       reportsData = remoteDoc.data;
-       drawMarkersOnMap();
+    console.log("⚠️ Lokal nichts gefunden, frage Cloud...");
+    
+    // 2. Versuch: Direkt bei der remoteDB (Cloud) nachsehen
+    try {
+      const remoteDoc = await remoteDB.get('reports_masterlist');
+      if (remoteDoc && remoteDoc.data) {
+        reportsData = remoteDoc.data;
+        // Speichere die Cloud-Daten direkt lokal ab für das nächste Mal
+        await localDB.put({
+          _id: 'reports_masterlist',
+          data: reportsData
+        }).catch(() => null);
+        
+        console.log("🌍 Cloud-Daten erfolgreich geholt!");
+        drawMarkersOnMap();
+      }
+    } catch (remoteErr) {
+      console.log("❌ Gar keine Daten gefunden (Cloud & Lokal leer)");
     }
   }
 }
+
 
 // Zeichnet alle Marker aus der reportsData-Liste neu
 function drawMarkersOnMap() {
