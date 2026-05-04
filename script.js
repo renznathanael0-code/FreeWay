@@ -1,8 +1,13 @@
 // --- Globale Variablen ---
+// Dies ist dein persönlicher Server-Platz (ID am Ende ist für dich generiert)
+const localDB = new PouchDB('freeway_stuttgart');
+const remoteDB = new PouchDB('https://96f79986-778e-4903-8d05-950c459f0f97-bluemix.cloudantnosqldb.appdomain.cloud/freeway-global');
+
+
 let map;
 let myLocationMarker;
-let reportsData = [];
-let activeMarkers = {};
+let reportsData = []; // Hier speichern wir die reinen Daten (Lat, Lng, Text...)
+let activeMarkers = {}; // Hier speichern wir die Leaflet-Marker-Objekte zum Löschen
 
 // --- 1. Karte initialisieren ---
 function initMap() {
@@ -12,8 +17,9 @@ function initMap() {
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
   
-  // Wir laden die Daten sofort beim Start aus dem Browser-Speicher
-  loadFromStorage();
+  // Daten laden und Sync starten
+  loadFromLocal().then(() => initSync());
+  
   
   map.locate({ setView: true, maxZoom: 16 });
   
@@ -27,7 +33,7 @@ function initMap() {
   });
 }
 
-// --- 2. Auswahl-Popups ---
+// --- 2. Auswahl- & Kommentar-Fenster ---
 function openSelectionPopup(latlng) {
   const content = `
     <div style="font-family: sans-serif; text-align: center;">
@@ -49,55 +55,114 @@ function openCommentPopup(lat, lng, typ, farbe) {
   L.popup().setLatLng([lat, lng]).setContent(content).openOn(map);
 }
 
-// --- 3. Speichern & Laden (Lokal) ---
+// --- 3. Speichern-Logik (Lokal -> Server) ---
 function finalizeReport(lat, lng, typ, farbe) {
   const kommentar = document.getElementById('report-comment').value;
   const id = "ID_" + Date.now();
   const zeit = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   
+  // In die Liste hinzufügen
   reportsData.push({ id, lat, lng, typ, kommentar, zeit, farbe });
   
-  saveToStorage();
+  // Sofort zum Server schicken
+  saveReportsToServer();
   map.closePopup();
 }
 
-function saveToStorage() {
-  // Speichert die Liste als Text im Browser
-  localStorage.setItem('my_freeway_data', JSON.stringify(reportsData));
-  console.log("💾 Lokal im Browser gesichert!");
-  drawMarkersOnMap();
-}
+// --- 4. Server-Kommunikation ---
 
-function loadFromStorage() {
-  const saved = localStorage.getItem('my_freeway_data');
-  if (saved) {
-    reportsData = JSON.parse(saved);
-    console.log("✅ " + reportsData.length + " Marker aus Browser geladen.");
+// --- Neue Speicher-Logik ---
+
+async function saveReportsToServer() {
+  const doc = {
+    _id: 'reports_masterlist',
+    data: reportsData
+  };
+  
+  try {
+    // Wir prüfen, ob es die Datei schon gibt (wegen der Revisions-Nummer)
+    const oldDoc = await localDB.get('reports_masterlist').catch(() => null);
+    if (oldDoc) doc._rev = oldDoc._rev;
+    
+    // Lokal speichern
+    await localDB.put(doc);
+    console.log("💾 Lokal gesichert!");
     drawMarkersOnMap();
+  } catch (err) {
+    console.log("Fehler beim Speichern: " + err);
   }
 }
 
-// --- 4. Zeichnen ---
+// Startet den Abgleich mit anderen Geräten
+function initSync() {
+  localDB.sync(remoteDB, {
+    live: true,
+    retry: true
+  }).on('change', function(info) {
+    console.log("🔄 Update von anderem Gerät!");
+    loadFromLocal(); // Karte neu zeichnen, wenn Daten reinkommen
+  });
+}
+
+// Lädt die Daten aus dem Speicher des iPads/Handys
+async function loadFromLocal() {
+  try {
+    const doc = await localDB.get('reports_masterlist');
+    if (doc && doc.data) {
+      reportsData = doc.data;
+      drawMarkersOnMap();
+      console.log("✅ Daten geladen: " + reportsData.length);
+    }
+  } catch (err) {
+    console.log("Noch keine Daten vorhanden.");
+  }
+}
+
+// Zeichnet alle Marker aus der reportsData-Liste neu
 function drawMarkersOnMap() {
-  if (!map) return;
-  for (let id in activeMarkers) { map.removeLayer(activeMarkers[id]); }
+  // Erst mal alle alten Marker von der Karte entfernen
+  for (let id in activeMarkers) {
+    map.removeLayer(activeMarkers[id]);
+  }
   activeMarkers = {};
   
+  // Alle aus der Liste neu setzen
   reportsData.forEach(r => {
     const icon = L.divIcon({
       html: `<div style="background-color: ${r.farbe}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.5);"></div>`,
       className: 'custom-marker',
       iconSize: [20, 20]
     });
+    
     const m = L.marker([r.lat, r.lng], { icon: icon }).addTo(map);
-    m.bindPopup(`<b>${r.typ}</b><br><button onclick="deleteReport('${r.id}')">🗑 Löschen</button>`);
+    m.bindPopup(`
+      <div style="font-family: sans-serif;">
+        <b>${r.typ}</b><br><small>${r.zeit} Uhr</small>
+        <p><i>"${r.kommentar || 'Kein Kommentar'}"</i></p>
+        <button onclick="deleteReport('${r.id}')" style="color:#e74c3c; border:none; background:none; font-weight:bold; cursor:pointer;">🗑 Löschen</button>
+      </div>
+    `);
     activeMarkers[r.id] = m;
   });
 }
 
 function deleteReport(id) {
-  reportsData = reportsData.filter(r => r.id !== id);
-  saveToStorage();
+  if (confirm("Behoben?")) {
+    reportsData = reportsData.filter(r => r.id !== id);
+    saveReportsToServer();
+  }
 }
 
+function sendReport(typ, farbe) {
+  if (myLocationMarker) {
+    const pos = myLocationMarker.getLatLng();
+    openCommentPopup(pos.lat, pos.lng, typ, farbe);
+  } else {
+    alert("Standort wird gesucht...");
+  }
+}
+
+// --- 5. Automatisierung ---
 window.addEventListener('load', initMap);
+
+
