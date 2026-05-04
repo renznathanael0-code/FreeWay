@@ -1,6 +1,9 @@
 // --- Globale Variablen ---
 // Dies ist dein persönlicher Server-Platz (ID am Ende ist für dich generiert)
-const URL = "https://api.npoint.io/e24e10694f7f44249b57"; 
+const localDB = new PouchDB('freeway_stuttgart');
+const remoteDB = new PouchDB('https://96f79986-778e-4903-8d05-950c459f0f97-bluemix.cloudantnosqldb.appdomain.cloud/freeway-global');
+
+
 let map;
 let myLocationMarker;
 let reportsData = []; // Hier speichern wir die reinen Daten (Lat, Lng, Text...)
@@ -14,8 +17,9 @@ function initMap() {
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
 
-  // Daten sofort beim Start vom Server laden
-  loadReportsFromServer();
+// Daten laden und Sync starten
+loadFromLocal().then(() => initSync());
+
 
   map.locate({setView: true, maxZoom: 16});
 
@@ -67,46 +71,50 @@ function finalizeReport(lat, lng, typ, farbe) {
 
 // --- 4. Server-Kommunikation ---
 
-// SPEICHERN
+// --- Neue Speicher-Logik ---
+
 async function saveReportsToServer() {
-  drawMarkersOnMap();
+  const doc = {
+    _id: 'reports_masterlist',
+    data: reportsData
+  };
 
   try {
-    const response = await fetch(URL, {
-      method: 'POST', // npoint nutzt POST zum Überschreiben
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(reportsData) // Wir schicken nur das nackte Array
-    });
+    // Wir prüfen, ob es die Datei schon gibt (wegen der Revisions-Nummer)
+    const oldDoc = await localDB.get('reports_masterlist').catch(() => null);
+    if (oldDoc) doc._rev = oldDoc._rev;
 
-    if (response.ok) {
-      console.log("☁️ In der Cloud gespeichert!");
-    }
+    // Lokal speichern
+    await localDB.put(doc);
+    console.log("💾 Lokal gesichert!");
+    drawMarkersOnMap();
   } catch (err) {
-    console.log("Cloud-Fehler: " + err);
+    console.log("Fehler beim Speichern: " + err);
   }
 }
 
-async function loadReportsFromServer() {
-  console.log("Versuche Daten zu laden...");
+// Startet den Abgleich mit anderen Geräten
+function initSync() {
+  localDB.sync(remoteDB, {
+    live: true,
+    retry: true
+  }).on('change', function (info) {
+    console.log("🔄 Update von anderem Gerät!");
+    loadFromLocal(); // Karte neu zeichnen, wenn Daten reinkommen
+  });
+}
+
+// Lädt die Daten aus dem Speicher des iPads/Handys
+async function loadFromLocal() {
   try {
-    const response = await fetch(URL);
-    if (response.ok) {
-      const data = await response.json();
-      if (Array.isArray(data) && data.length > 0) {
-        reportsData = data;
-        console.log("Daten erhalten: ", reportsData.length);
-        
-        // Wir warten 500ms, damit die Karte sicher geladen ist
-        setTimeout(() => {
-            drawMarkersOnMap();
-            console.log("Marker wurden gezeichnet!");
-        }, 500);
-      }
+    const doc = await localDB.get('reports_masterlist');
+    if (doc && doc.data) {
+      reportsData = doc.data;
+      drawMarkersOnMap();
+      console.log("✅ Daten geladen: " + reportsData.length);
     }
   } catch (err) {
-    console.log("Cloud-Fehler beim Laden: " + err);
+    console.log("Noch keine Daten vorhanden.");
   }
 }
 
@@ -156,8 +164,3 @@ function sendReport(typ, farbe) {
 
 // --- 5. Automatisierung ---
 window.addEventListener('load', initMap);
-
-// Alle 15 Sekunden automatisch vom Server laden (für das Team)
-setInterval(loadReportsFromServer, 15000);
-
-loadReportsFromServer();
