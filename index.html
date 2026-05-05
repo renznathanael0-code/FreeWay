@@ -1,34 +1,46 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Freeway Stuttgart</title>
 
-  <title>FreeWay - Barrierefreie Navigation</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            font-family: sans-serif;
+        }
+
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+
+        /* Schickes Design für die Marker-Icons */
+        .custom-marker {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+            color: white;
+        }
+    </style>
 </head>
 <body>
-  <div id="map"></div>
-<div class="controls">
-  <!-- Der neue Hinweistext -->
-  <div class="controls-hint">
-    📍 Tippe auf ein Symbol, um ein Hindernis an deinem <b>aktuellen Standort</b> zu melden:
-  </div>
 
-  <div class="button-grid">
-    <button id="treppen" onclick="sendReport('Treppe', '#E74C3C')">🪜 Treppe</button>
-    <button id="defekt" onclick="sendReport('Aufzug defekt', '#E67E22')">🛗 Aufzug</button>
-    <button id="baustelle" onclick="sendReport('Baustelle', '#F1C40F')">🚧 Baustelle</button>
-  </div>
-</div>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/pouchdb@8.0.1/dist/pouchdb.min.js"></script>
+    <div id="map"></div>
 
-<script src="script.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/pouchdb@8.0.1/dist/pouchdb.min.js"></script>
 
-
+    <script src="script.js"></script>
 
 </body>
 </html>
