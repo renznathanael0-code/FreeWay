@@ -1,98 +1,23 @@
-body, html {
+body,
+html {
   margin: 0;
   padding: 0;
   height: 100%;
-  font-family: Arial, sans-serif;
-  background-color: #f0f0f0;
+  width: 100%;
+  overflow: hidden;
+  font-family: sans-serif;
 }
 
 #map {
-  width: 100%;
   height: 100%;
-  position: absolute;
-  top: 0;
-  z-index: 1;
-}
-
-button {
-  background-color: #4CAF50;
-  color: white;
-  border: none;
-  padding: 15px 20px;
-  font-size: 18px;
-  border-radius: 8px;
-  width: 30%;
-  min-height: 60px;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-  transition: background-color 0.3s;
-}
-
-button:hover {
-  background-color: #45a049;
-}
-
-/* High contrast for sunlight visibility */
-@media (prefers-contrast: high) {
-  button {
-    border: 3px solid white;
-    outline: 1px solid black;
-  }
-}
-
-/* Farben für die Melde-Buttons */
-#btn-aufzug { background-color: #E67E22; color: white; }
-#btn-treppe { background-color: #E74C3C; color: white; }
-#btn-baustelle { background-color: #F1C40F; color: black; }
-#btn-steigung { background-color: #9B59B6; color: white; }
-#btn-wc { background-color: #3498DB; color: white; }
-
-.controls {
-  position: fixed;
-  bottom: 0;
-  left: 0;
   width: 100%;
-  background-color: rgba(255, 255, 255, 0.95); /* Hell und leicht durchsichtig */
-  padding: 15px 0;
-  z-index: 1000;
-  border-top: 2px solid #ccc;
+}
+
+/* Schickes Design für die Marker-Icons */
+.custom-marker {
   display: flex;
-  flex-direction: column;
+  justify-content: center;
   align-items: center;
-}
-
-.controls-hint {
-  color: #2c3e50;
-  font-size: 16px;
-  margin-bottom: 12px;
-  padding: 0 20px;
-  text-align: center;
-  font-weight: 500;
-}
-
-.button-grid {
-  width: 100%;
-  display: flex;
-  justify-content: space-around;
-  padding-bottom: 10px;
-}
-
-button {
+  font-size: 14px;
   color: white;
-  border: none;
-  padding: 15px 10px;
-  font-size: 16px;
-  border-radius: 12px;
-  width: 30%;
-  font-weight: bold;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-  cursor: pointer;
-}
-
-/* Farben für die Buttons */
-#treppen { background-color: #E74C3C; }
-#defekt { background-color: #E67E22; }
-#baustelle { background-color: #F1C40F; color: black; } /* Schwarz auf Gelb für besseren Kontrast */
-
-button:active {
-  transform: scale(0.95); /* Kleiner Effekt beim Drücken */
 }
