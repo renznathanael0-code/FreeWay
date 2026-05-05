@@ -49,23 +49,47 @@ if (r.typ.includes("Baustelle")) emoji = "🚧";
 }
 
 function openSelectionPopup(latlng) {
+  // Wir definieren das Design direkt hier als Text, um Leaflet zu überstimmen
   const content = `
-    <div style="font-family: sans-serif; text-align: center; min-width: 200px;">
-      <b style="font-size: 1.1em;">Was möchtest du melden?</b><br><br>
+    <div style="width: 280px !important; font-family: sans-serif; padding: 10px; background: white;">
+      <b style="font-size: 1.2em; display: block; text-align: center; margin-bottom: 15px; color: #333;">Eintrag hinzufügen</b>
       
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
-        <button onclick="finalizeReport(${latlng.lat}, ${latlng.lng}, 'Treppe', '#E74C3C')" style="background:#E74C3C; color:white; border:none; padding:10px; border-radius:5px;">🪜 Treppe</button>
-        <button onclick="finalizeReport(${latlng.lat}, ${latlng.lng}, 'Aufzug defekt', '#E67E22')" style="background:#E67E22; color:white; border:none; padding:10px; border-radius:5px;">🛗 Defekt</button>
+      <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
         
-        <button onclick="finalizeReport(${latlng.lat}, ${latlng.lng}, 'Parkplatz', '#3498DB')" style="background:#3498DB; color:white; border:none; padding:10px; border-radius:5px;">🅿️ Parken</button>
-        <button onclick="finalizeReport(${latlng.lat}, ${latlng.lng}, 'WC barrierefrei', '#2ECC71')" style="background:#2ECC71; color:white; border:none; padding:10px; border-radius:5px;">🚽 WC</button>
+        <button onclick="finalizeReport(${latlng.lat}, ${latlng.lng}, 'Treppe', '#E74C3C')" 
+          style="background:#E74C3C; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; display: flex; align-items: center; width: 100%; box-sizing: border-box;">
+          <span style="font-size: 20px; margin-right: 15px;">🪜</span> Treppe melden
+        </button>
         
-        <button onclick="finalizeReport(${latlng.lat}, ${latlng.lng}, 'Aufzug OK', '#27AE60')" style="background:#27AE60; color:white; border:none; padding:10px; border-radius:5px;">🛗 Aufzug</button>
-        <button onclick="finalizeReport(${latlng.lat}, ${latlng.lng}, 'Ort barrierefrei', '#9B59B6')" style="background:#9B59B6; color:white; border:none; padding:10px; border-radius:5px;">📍 Ort</button>
+        <button onclick="finalizeReport(${latlng.lat}, ${latlng.lng}, 'Aufzug defekt', '#E67E22')" 
+          style="background:#E67E22; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; display: flex; align-items: center; width: 100%; box-sizing: border-box;">
+          <span style="font-size: 20px; margin-right: 15px;">⚠️</span> Aufzug defekt
+        </button>
+        
+        <button onclick="finalizeReport(${latlng.lat}, ${latlng.lng}, 'Parkplatz', '#3498DB')" 
+          style="background:#3498DB; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; display: flex; align-items: center; width: 100%; box-sizing: border-box;">
+          <span style="font-size: 20px; margin-right: 15px;">🅿️</span> Parkplatz
+        </button>
+        
+        <button onclick="finalizeReport(${latlng.lat}, ${latlng.lng}, 'WC barrierefrei', '#2ECC71')" 
+          style="background:#2ECC71; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; display: flex; align-items: center; width: 100%; box-sizing: border-box;">
+          <span style="font-size: 20px; margin-right: 15px;">🚽</span> WC barrierefrei
+        </button>
+        
+        <button onclick="finalizeReport(${latlng.lat}, ${latlng.lng}, 'Aufzug OK', '#27AE60')" 
+          style="background:#27AE60; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; display: flex; align-items: center; width: 100%; box-sizing: border-box;">
+          <span style="font-size: 20px; margin-right: 15px;">🛗</span> Aufzug OK
+        </button>
+
       </div>
-      <p style="font-size: 0.8em; color: #666; margin-top: 10px;">Tippe auf ein Symbol zum Melden</p>
+      <p style="text-align:center; font-size: 10px; color: #999; margin-top: 10px;">Zum Abbrechen daneben tippen</p>
     </div>`;
-  L.popup().setLatLng(latlng).setContent(content).openOn(map);
+
+  // maxWidth sorgt dafür, dass Leaflet das Fenster groß genug macht
+  L.popup({ maxWidth: 320, minWidth: 280 })
+    .setLatLng(latlng)
+    .setContent(content)
+    .openOn(map);
 }
 
 // Diese Funktion verarbeitet den Klick und speichert alles ab
@@ -107,12 +131,39 @@ async function saveToServer() {
 }
 
 function generateQR() {
-    document.getElementById("qrcode").innerHTML = "";
-    document.getElementById("qr-overlay").style.display = "flex";
-    new QRCode(document.getElementById("qrcode"), {
-        text: JSON.stringify(reportsData),
-        width: 250, height: 250
-    });
+    const qrContainer = document.getElementById("qrcode");
+    const overlay = document.getElementById("qr-overlay");
+    
+    // 1. Altes löschen
+    qrContainer.innerHTML = "";
+    
+    // 2. Das Fenster erst SICHTBAR machen
+    overlay.style.display = "flex";
+
+    // 3. Einen winzigen Moment warten (100ms), damit der Browser das Fenster gezeichnet hat
+    setTimeout(() => {
+        try {
+            const dataString = JSON.stringify(reportsData);
+            
+            // Check, ob überhaupt Daten da sind
+            if (reportsData.length === 0) {
+                qrContainer.innerHTML = "<p style='color:black; padding:20px;'>Keine Marker zum Teilen vorhanden!</p>";
+                return;
+            }
+
+            new QRCode(qrContainer, {
+                text: dataString,
+                width: 220,
+                height: 220,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.L // Level L verträgt mehr Daten
+            });
+        } catch (err) {
+            console.error("QR Fehler:", err);
+            qrContainer.innerHTML = "<p style='color:black;'>Fehler: Zu viele Daten!</p>";
+        }
+    }, 100); 
 }
 
 function scanQR() {
