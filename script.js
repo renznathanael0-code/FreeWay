@@ -170,17 +170,36 @@ window.addEventListener('load', initMap);
 
 // --- QR-Code generieren ---
 function generateQR() {
-    const dataString = JSON.stringify(reportsData); // Macht aus der Liste Text
     const qrContainer = document.getElementById("qrcode");
-    qrContainer.innerHTML = ""; // Altes löschen
+    qrContainer.innerHTML = ""; // Altes Bild löschen
     
+    // 1. Erst das Overlay anzeigen (wichtig!)
     document.getElementById("qr-overlay").style.display = "flex";
     
-    new QRCode(qrContainer, {
-        text: dataString,
-        width: 256,
-        height: 256
-    });
+    // 2. Die Daten in Text umwandeln
+    const dataString = JSON.stringify(reportsData);
+    
+    // Sicherheitscheck: Wenn die Liste zu lang ist, wird der QR-Code zu fein
+    if (dataString.length > 1200) {
+        alert("Zu viele Daten für einen QR-Code! Lösche ein paar alte Marker.");
+        document.getElementById("qr-overlay").style.display = "none";
+        return;
+    }
+
+    // 3. QR-Code generieren
+    try {
+        new QRCode(qrContainer, {
+            text: dataString,
+            width: 250,
+            height: 250,
+            colorDark : "#000000",
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.L // Niedriges Level für mehr Datenkapazität
+        });
+    } catch (err) {
+        console.error("QR Fehler:", err);
+        qrContainer.innerHTML = "<p style='color:black'>Fehler beim Erstellen.<br>Datenmenge zu groß?</p>";
+    }
 }
 
 // --- Daten per Texteingabe einlesen (als Ersatz für echte Kamera-Scans) ---
