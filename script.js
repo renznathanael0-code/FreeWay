@@ -33,14 +33,27 @@ function initMap() {
 // --- 2. Popups (Auswahl & Kommentar) ---
 function openSelectionPopup(latlng) {
   const content = `
-    <div style="font-family: sans-serif; text-align: center;">
-      <b>Was ist hier?</b><br><br>
-      <button onclick="openCommentPopup(${latlng.lat}, ${latlng.lng}, 'Treppe', '#E74C3C')" style="background:#E74C3C; color:white; border:none; padding:8px; margin:2px; border-radius:5px;">🪜 Treppe</button>
-      <button onclick="openCommentPopup(${latlng.lat}, ${latlng.lng}, 'Aufzug defekt', '#E67E22')" style="background:#E67E22; color:white; border:none; padding:8px; margin:2px; border-radius:5px;">🛗 Aufzug</button>
-      <button onclick="openCommentPopup(${latlng.lat}, ${latlng.lng}, 'Baustelle', '#F1C40F')" style="background:#F1C40F; color:black; border:none; padding:8px; margin:2px; border-radius:5px;">🚧 Baustelle</button>
+    <div style="font-family: sans-serif; text-align: center; min-width: 230px;">
+      <b style="font-size: 1.1em;">Was möchtest du melden?</b><br><br>
+      
+      <div style="text-align: left; font-size: 0.85em; font-weight: bold; margin-bottom: 5px; color: #c0392b;">⚠️ HINDERNISSE</div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 15px;">
+        <button onclick="openCommentPopup(${latlng.lat}, ${latlng.lng}, 'Treppe', '#E74C3C')" style="background:#E74C3C; color:white; border:none; padding:10px; border-radius:5px;">🪜 Treppe</button>
+        <button onclick="openCommentPopup(${latlng.lat}, ${latlng.lng}, 'Aufzug defekt', '#E67E22')" style="background:#E67E22; color:white; border:none; padding:10px; border-radius:5px;">🛗 Defekt</button>
+        <button onclick="openCommentPopup(${latlng.lat}, ${latlng.lng}, 'Baustelle', '#F1C40F')" style="background:#F1C40F; color:black; border:none; padding:10px; border-radius:5px; grid-column: span 2;">🚧 Baustelle / Engpass</button>
+      </div>
+
+      <div style="text-align: left; font-size: 0.85em; font-weight: bold; margin-bottom: 5px; color: #27ae60;">✅ BARRIEREFREI</div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+        <button onclick="openCommentPopup(${latlng.lat}, ${latlng.lng}, 'WC barrierefrei', '#2ECC71')" style="background:#2ECC71; color:white; border:none; padding:10px; border-radius:5px;">🚽 WC</button>
+        <button onclick="openCommentPopup(${latlng.lat}, ${latlng.lng}, 'Aufzug', '#27AE60')" style="background:#27AE60; color:white; border:none; padding:10px; border-radius:5px;">🛗 Aufzug</button>
+        <button onclick="openCommentPopup(${latlng.lat}, ${latlng.lng}, 'Parkplatz', '#3498DB')" style="background:#3498DB; color:white; border:none; padding:10px; border-radius:5px;">🅿️ Parkplatz</button>
+        <button onclick="openCommentPopup(${latlng.lat}, ${latlng.lng}, 'Ort barrierefrei', '#9B59B6')" style="background:#9B59B6; color:white; border:none; padding:10px; border-radius:5px;">📍 Ort</button>
+      </div>
     </div>`;
   L.popup().setLatLng(latlng).setContent(content).openOn(map);
 }
+
 
 function openCommentPopup(lat, lng, typ, farbe) {
   const content = `
