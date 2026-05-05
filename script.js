@@ -167,3 +167,35 @@ function deleteReport(id) {
 }
 
 window.addEventListener('load', initMap);
+
+// --- QR-Code generieren ---
+function generateQR() {
+    const dataString = JSON.stringify(reportsData); // Macht aus der Liste Text
+    const qrContainer = document.getElementById("qrcode");
+    qrContainer.innerHTML = ""; // Altes löschen
+    
+    document.getElementById("qr-overlay").style.display = "flex";
+    
+    new QRCode(qrContainer, {
+        text: dataString,
+        width: 256,
+        height: 256
+    });
+}
+
+// --- Daten per Texteingabe einlesen (als Ersatz für echte Kamera-Scans) ---
+function scanQR() {
+    const input = prompt("Füge hier den Code ein, den du gescannt hast (oder kopierten Text):");
+    if (input) {
+        try {
+            const neueDaten = JSON.parse(input);
+            // Bestehende Daten mit neuen mischen (ohne Doppelte)
+            reportsData = [...new Set([...reportsData, ...neueDaten].map(JSON.stringify))].map(JSON.parse);
+            saveReportsToServer(); // Lokal speichern
+            drawMarkersOnMap();    // Karte aktualisieren
+            alert("Daten erfolgreich übertragen!");
+        } catch (e) {
+            alert("Fehler: Das war kein gültiger Code.");
+        }
+    }
+}
