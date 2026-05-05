@@ -71,8 +71,16 @@ function finalizeReport(lat, lng, typ, farbe) {
   const id = "ID_" + Date.now();
   const zeit = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   
+  // 1. In die lokale Liste schreiben
   reportsData.push({ id, lat, lng, typ, kommentar, zeit, farbe });
+  
+  // 2. Sofort auf der Karte anzeigen (das fehlte wahrscheinlich!)
+  drawMarkersOnMap();
+  
+  // 3. Im Hintergrund in der Datenbank speichern
   saveReportsToServer();
+  
+  // 4. Fenster zu
   map.closePopup();
 }
 
@@ -130,20 +138,23 @@ function drawMarkersOnMap() {
   activeMarkers = {};
   
   reportsData.forEach(r => {
+    // Welches Emoji gehört zu welchem Typ?
+    let emoji = "📍"; // Standard
+    if (r.typ.includes("Treppe")) emoji = "🪜";
+    if (r.typ.includes("Aufzug defekt")) emoji = "⚠️";
+    if (r.typ.includes("Aufzug")) emoji = "🛗";
+    if (r.typ.includes("WC")) emoji = "🚽";
+    if (r.typ.includes("Parkplatz")) emoji = "🅿️";
+    if (r.typ.includes("Baustelle")) emoji = "🚧";
+
     const icon = L.divIcon({
-      html: `<div style="background-color: ${r.farbe}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.5);"></div>`,
+      html: `<div style="background-color: ${r.farbe}; width: 30px; height: 30px; border-radius: 50%; border: 2px solid white; display: flex; justify-content: center; align-items: center; box-shadow: 0 0 5px rgba(0,0,0,0.4); font-size: 16px;">${emoji}</div>`,
       className: 'custom-marker',
-      iconSize: [20, 20]
+      iconSize: [30, 30]
     });
     
     const m = L.marker([r.lat, r.lng], { icon: icon }).addTo(map);
-    m.bindPopup(`
-      <div style="font-family: sans-serif;">
-        <b>${r.typ}</b><br><small>${r.zeit} Uhr</small>
-        <p><i>"${r.kommentar || 'Kein Kommentar'}"</i></p>
-        <button onclick="deleteReport('${r.id}')" style="color:#e74c3c; border:none; background:none; font-weight:bold; cursor:pointer;">🗑 Löschen</button>
-      </div>
-    `);
+    m.bindPopup(`<b>${r.typ}</b><br><p>${r.kommentar}</p><button onclick="deleteReport('${r.id}')">🗑 Löschen</button>`);
     activeMarkers[r.id] = m;
   });
 }
