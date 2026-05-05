@@ -132,48 +132,52 @@ async function saveToServer() {
 
 function generateQR() {
     const qrContainer = document.getElementById("qrcode");
-    const overlay = document.getElementById("qr-overlay");
-    
-    // 1. Altes löschen
     qrContainer.innerHTML = "";
-    
-    // 2. Das Fenster erst SICHTBAR machen
-    overlay.style.display = "flex";
+    document.getElementById("qr-overlay").style.display = "flex";
 
-    // 3. Einen winzigen Moment warten (100ms), damit der Browser das Fenster gezeichnet hat
     setTimeout(() => {
-        try {
-            const dataString = JSON.stringify(reportsData);
-            
-            // Check, ob überhaupt Daten da sind
-            if (reportsData.length === 0) {
-                qrContainer.innerHTML = "<p style='color:black; padding:20px;'>Keine Marker zum Teilen vorhanden!</p>";
-                return;
-            }
+        // Wir nehmen NUR die wichtigen Infos: Typ-Index, Breitengrad, Längengrad
+        // Das macht den Text VIEL kürzer
+        const shortData = reportsData.map(r => {
+            return [r.typ[0], Math.round(r.lat * 10000) / 10000, Math.round(r.lng * 10000) / 10000];
+        });
 
-            new QRCode(qrContainer, {
-                text: dataString,
-                width: 220,
-                height: 220,
-                colorDark : "#000000",
-                colorLight : "#ffffff",
-                correctLevel : QRCode.CorrectLevel.L // Level L verträgt mehr Daten
-            });
-        } catch (err) {
-            console.error("QR Fehler:", err);
-            qrContainer.innerHTML = "<p style='color:black;'>Fehler: Zu viele Daten!</p>";
-        }
-    }, 100); 
+        const dataString = JSON.stringify(shortData);
+
+        new QRCode(qrContainer, {
+            text: dataString,
+            width: 250,
+            height: 250,
+            // Niedrige Korrektur = größere Punkte = besser scanbar!
+            correctLevel : QRCode.CorrectLevel.L 
+        });
+    }, 200);
 }
 
 function scanQR() {
     const val = prompt("QR-Text hier einfügen:");
     if (val) {
         try {
-            reportsData = JSON.parse(val);
+            const shortData = JSON.parse(val);
+            // Wir bauen aus der Kurzform wieder richtige Marker
+            const neueMarker = shortData.map(item => {
+                let typ = item[0] === 'T' ? 'Treppe' : item[0] === 'A' ? 'Aufzug defekt' : 'Ort';
+                let farbe = item[0] === 'T' ? '#E74C3C' : '#E67E22';
+                return {
+                    id: "QR_" + Date.now() + Math.random(),
+                    lat: item[1],
+                    lng: item[2],
+                    typ: typ,
+                    farbe: farbe,
+                    kommentar: "Importiert"
+                };
+            });
+            
+            reportsData = [...reportsData, ...neueMarker];
             drawMarkersOnMap();
             saveToServer();
-        } catch(e) { alert("Ungültiger Code"); }
+            alert("Erfolgreich gelandet!");
+        } catch(e) { alert("Code zu komplex oder ungültig."); }
     }
 }
 
