@@ -27,3 +27,9 @@ button {
     display: flex; justify-content: center; align-items: center; border-radius: 50%;
     border: 2px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.5); color: white;
 }
+
+/* Vergrößert die Leaflet-Popups ein wenig für bessere Lesbarkeit */
+.leaflet-popup-content {
+    margin: 15px !important;
+    line-height: 1.4;
+}

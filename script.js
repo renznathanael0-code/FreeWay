@@ -66,23 +66,46 @@ function updateStatus(text, color) {
 function drawMarkersOnMap() {
     Object.values(activeMarkers).forEach(m => map.removeLayer(m));
     activeMarkers = {};
-
+    
     reportsData.forEach((r, index) => {
-let emoji = "📍";
-if (r.typ.includes("Treppe")) emoji = "🪜";
-if (r.typ.includes("defekt")) emoji = "⚠️";
-if (r.typ.includes("WC")) emoji = "🚽";
-if (r.typ.includes("Parkplatz")) emoji = "🅿️";
-if (r.typ.includes("Aufzug")) emoji = "🛗"; // Findet jetzt beide Aufzug-Typen
-if (r.typ.includes("Bau")) emoji = "🚧";
-
-
+        let emoji = "📍";
+        if (r.typ.includes("Treppe")) emoji = "🪜";
+        if (r.typ.includes("defekt")) emoji = "🛗";
+        if (r.typ.includes("WC")) emoji = "🚽";
+        if (r.typ.includes("Parkplatz")) emoji = "🅿️";
+        if (r.typ.includes("Aufzug")) emoji = "🛗";
+        if (r.typ.includes("Baustelle")) emoji = "🚧";
+        
         const icon = L.divIcon({
-            html: `<div class="custom-marker" style="background:${r.farbe}; width:30px; height:30px; display:flex; align-items:center; justify-content:center; border-radius:50%; border:2px solid white;">${emoji}</div>`,
-            className: '', iconSize: [30, 30]
+            html: `<div class="custom-marker" style="background:${r.farbe}; width:30px; height:30px; display:flex; align-items:center; justify-content:center; border-radius:50%; border:2px solid white; color:white;">${emoji}</div>`,
+            className: '',
+            iconSize: [30, 30]
         });
-        const m = L.marker([r.lat, r.lng], {icon}).addTo(map);
-        m.bindPopup(`<b>${r.typ}</b><br><button onclick="deleteReport(${index})">Löschen</button>`);
+        
+        const m = L.marker([r.lat, r.lng], { icon }).addTo(map);
+        
+        // Link für Google Maps Navigation
+        const gMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${r.lat},${r.lng}`;
+        
+        const popupContent = `
+            <div style="font-family:sans-serif; min-width:180px;">
+                <b style="font-size:1.1em;">${r.typ}</b><br>
+                <p style="color:#555; margin: 8px 0;">${r.kommentar}</p>
+                <hr style="border:0; border-top:1px solid #eee;">
+                
+                <a href="${gMapsUrl}" target="_blank" style="text-decoration:none;">
+                    <button style="background:#4285F4; color:white; border:none; padding:10px; width:100%; border-radius:5px; margin-bottom:10px; font-weight:bold; cursor:pointer;">
+                        🗺️ In Google Maps öffnen
+                    </button>
+                </a>
+
+                <button onclick="deleteReport(${index})" style="background:#d32f2f; color:white; border:none; padding:10px; width:100%; border-radius:5px; font-weight:bold; cursor:pointer;">
+                    🗑️ Eintrag löschen
+                </button>
+            </div>
+        `;
+        
+        m.bindPopup(popupContent);
         activeMarkers[index] = m;
     });
 }
@@ -101,7 +124,12 @@ function openSelectionPopup(latlng) {
         
         <button onclick="finalizeReport(${latlng.lat}, ${latlng.lng}, 'Aufzug defekt', '#E67E22')" 
           style="background:#E67E22; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; display: flex; align-items: center; width: 100%; box-sizing: border-box;">
-          <span style="font-size: 20px; margin-right: 15px;">⚠️</span> Aufzug defekt
+          <span style="font-size: 20px; margin-right: 15px;">🛗</span> Aufzug defekt
+        </button>
+
+        <button onclick="finalizeReport(${latlng.lat}, ${latlng.lng}, 'Baustelle', '#F1C40F')" 
+          style="background:#F1C40F; color:black; border:none; padding:12px; border-radius:8px; font-weight:bold; display: flex; align-items: center; width: 100%; box-sizing: border-box;">
+          <span style="font-size: 20px; margin-right: 15px;">🚧</span> Baustelle / Sperrung
         </button>
 
         <hr style="border: 0; border-top: 1px solid #eee; margin: 5px 0;">
@@ -137,7 +165,18 @@ function openSelectionPopup(latlng) {
 }
 
 function finalizeReport(lat, lng, typ, farbe) {
-    reportsData.push({lat, lng, typ, farbe, zeit: new Date().toLocaleTimeString()});
+    const details = prompt(`Zusatzinfos für ${typ} (optional):`, "");
+    
+    // Wir speichern die Daten
+    reportsData.push({
+        lat: lat, 
+        lng: lng, 
+        typ: typ, 
+        farbe: farbe, 
+        kommentar: details || "Keine weiteren Details",
+        id: Date.now()
+    });
+    
     drawMarkersOnMap();
     saveToCommunity();
     map.closePopup();
