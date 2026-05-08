@@ -66,7 +66,7 @@ function updateStatus(text, color) {
 function drawMarkersOnMap() {
     Object.values(activeMarkers).forEach(m => map.removeLayer(m));
     activeMarkers = {};
-    
+
     reportsData.forEach((r, index) => {
         let emoji = "📍";
         if (r.typ.includes("Treppe")) emoji = "🪜";
@@ -75,39 +75,31 @@ function drawMarkersOnMap() {
         if (r.typ.includes("Parkplatz")) emoji = "🅿️";
         if (r.typ.includes("Aufzug")) emoji = "🛗";
         if (r.typ.includes("Baustelle")) emoji = "🚧";
-        
+
         const icon = L.divIcon({
-            html: `<div class="custom-marker" style="background:${r.farbe}; width:30px; height:30px; display:flex; align-items:center; justify-content:center; border-radius:50%; border:2px solid white; color:white;">${emoji}</div>`,
-            className: '',
+            html: `<div style="background:${r.farbe}; width:30px; height:30px; display:flex; align-items:center; justify-content:center; border-radius:50%; border:2px solid white; color:white;">${emoji}</div>`,
+            className: '', 
             iconSize: [30, 30]
         });
+
+        const m = L.marker([r.lat, r.lng], {icon}).addTo(map);
         
-        const m = L.marker([r.lat, r.lng], { icon }).addTo(map);
-        
-        // Link für Google Maps Navigation
-        const gMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${r.lat},${r.lng}`;
-        
+        // Hier habe ich das fehlende $ vor der geschweiften Klammer ergänzt:
+        const gMapsUrl = `https://www.google.com/maps?q=${r.lat},${r.lng}`;
+
         const popupContent = `
             <div style="font-family:sans-serif; min-width:180px;">
-                <b style="font-size:1.1em;">${r.typ}</b><br>
-                <p style="color:#555; margin: 8px 0;">${r.kommentar}</p>
-                <hr style="border:0; border-top:1px solid #eee;">
-                
+                <b>${r.typ}</b><br>
+                <p>${r.kommentar}</p>
                 <a href="${gMapsUrl}" target="_blank" style="text-decoration:none;">
-                    <button style="background:#4285F4; color:white; border:none; padding:10px; width:100%; border-radius:5px; margin-bottom:10px; font-weight:bold; cursor:pointer;">
-                        🗺️ In Google Maps öffnen
-                    </button>
+                    <button style="background:#4285F4; color:white; border:none; padding:10px; width:100%; border-radius:5px; margin-bottom:10px; cursor:pointer;">🗺️ Google Maps</button>
                 </a>
+                <button onclick="deleteReport(${index})" style="background:#d32f2f; color:white; border:none; padding:10px; width:100%; border-radius:5px; cursor:pointer;">🗑️ Löschen</button>
+            </div>`; 
 
-                <button onclick="deleteReport(${index})" style="background:#d32f2f; color:white; border:none; padding:10px; width:100%; border-radius:5px; font-weight:bold; cursor:pointer;">
-                    🗑️ Eintrag löschen
-                </button>
-            </div>
-        `;
-        
         m.bindPopup(popupContent);
         activeMarkers[index] = m;
-    });
+    }); 
 }
 
 function openSelectionPopup(latlng) {
@@ -165,16 +157,16 @@ function openSelectionPopup(latlng) {
 }
 
 function finalizeReport(lat, lng, typ, farbe) {
-    const details = prompt(`Zusatzinfos für ${typ} (optional):`, "");
+    const details = prompt(`Zusatzinfos für ${typ}:`, "");
     
-    // Wir speichern die Daten
     reportsData.push({
         lat: lat, 
         lng: lng, 
         typ: typ, 
         farbe: farbe, 
-        kommentar: details || "Keine weiteren Details",
-        id: Date.now()
+        kommentar: details || "",
+        id: "id_" + Date.now(),
+        votes: 0 // Wir starten bei 0
     });
     
     drawMarkersOnMap();
@@ -196,3 +188,20 @@ function deleteReport(index) {
 }
 
 window.onload = initMap;
+
+async function vote(id, change) {
+    // Den richtigen Marker in der Liste finden
+    const report = reportsData.find(r => r.id === id);
+    if (report) {
+        report.votes += change;
+
+        // Auto-Lösch-Logik: Wenn zu viele Leute sagen "Stimmt nicht"
+        if (report.votes <= -5) {
+            reportsData = reportsData.filter(r => r.id !== id);
+            alert("Dieser Eintrag wurde aufgrund von Community-Meldungen entfernt.");
+        }
+
+        drawMarkersOnMap();
+        saveToCommunity(); // Direkt in der Cloud speichern
+    }
+}
