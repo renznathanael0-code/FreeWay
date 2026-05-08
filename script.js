@@ -84,17 +84,28 @@ function drawMarkersOnMap() {
 
         const m = L.marker([r.lat, r.lng], {icon}).addTo(map);
         
-        // Hier habe ich das fehlende $ vor der geschweiften Klammer ergänzt:
+        // Korrektur der Google Maps URL (mit Dollarzeichen $)
         const gMapsUrl = `https://www.google.com/maps?q=${r.lat},${r.lng}`;
 
         const popupContent = `
             <div style="font-family:sans-serif; min-width:180px;">
                 <b>${r.typ}</b><br>
-                <p>${r.kommentar}</p>
+                <p style="margin: 5px 0;">${r.kommentar}</p>
+                
+                <div style="background:#eee; padding:5px; border-radius:5px; text-align:center; margin-bottom:10px; font-size: 0.9em;">
+                    Vertrauen: <b>${r.votes || 0}</b>
+                </div>
+
+                <div style="display:flex; gap:5px; margin-bottom:10px;">
+                    <button onclick="vote('${r.id}', 1)" style="flex:1; background:#27AE60; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer; font-weight:bold;">✅ Stimmt</button>
+                    <button onclick="vote('${r.id}', -1)" style="flex:1; background:#E67E22; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer; font-weight:bold;">❌ Falsch</button>
+                </div>
+
                 <a href="${gMapsUrl}" target="_blank" style="text-decoration:none;">
-                    <button style="background:#4285F4; color:white; border:none; padding:10px; width:100%; border-radius:5px; margin-bottom:10px; cursor:pointer;">🗺️ Google Maps</button>
+                    <button style="background:#4285F4; color:white; border:none; padding:10px; width:100%; border-radius:5px; margin-bottom:10px; cursor:pointer; font-weight:bold;">🗺️ Google Maps</button>
                 </a>
-                <button onclick="deleteReport(${index})" style="background:#d32f2f; color:white; border:none; padding:10px; width:100%; border-radius:5px; cursor:pointer;">🗑️ Löschen</button>
+                
+                <button onclick="deleteReport(${index})" style="background:none; color:#d32f2f; border:none; font-size:11px; cursor:pointer; width:100%;">🗑️ Eintrag löschen</button>
             </div>`; 
 
         m.bindPopup(popupContent);
