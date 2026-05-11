@@ -8,19 +8,11 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<div id="map"></div>
 
-    <div id="map"></div>
+<div id="sync-status">Community-Status: Verbinde...</div>
 
-    <div class="controls">
-        <div class="button-grid">
-            <button id="treppen" onclick="sendReport('Treppe', '#E74C3C')">🪜 Treppe</button>
-            <button id="defekt" onclick="sendReport('Aufzug defekt', '#E67E22')">🛗 Defekt</button>
-            <button id="baustelle" onclick="sendReport('Baustelle', '#F1C40F')">🚧 Bau</button>
-        </div>
-        <div class="button-grid" style="margin-top: 10px;">
-            <div id="sync-status">Community-Status: Verbinde...</div>
-        </div>
-    </div>
+
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pouchdb@8.0.1/dist/pouchdb.min.js"></script>
