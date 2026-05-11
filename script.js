@@ -105,7 +105,10 @@ function drawMarkersOnMap() {
                     <button style="background:#4285F4; color:white; border:none; padding:10px; width:100%; border-radius:5px; margin-bottom:10px; cursor:pointer; font-weight:bold;">🗺️ Google Maps</button>
                 </a>
                 
-                <button onclick="deleteReport(${index})" style="background:none; color:#d32f2f; border:none; font-size:11px; cursor:pointer; width:100%;">🗑️ Eintrag löschen</button>
+               <button onclick="adminDelete(${index})" style="background:none; color:#999; border:none; font-size:10px; cursor:pointer; width:100%; margin-top:5px;">
+    ⚙️ Admin-Löschung
+</button>
+
             </div>`; 
 
         m.bindPopup(popupContent);
@@ -214,5 +217,19 @@ async function vote(id, change) {
 
         drawMarkersOnMap();
         saveToCommunity(); // Direkt in der Cloud speichern
+    }
+}
+
+function adminDelete(index) {
+    const passwort = "Roxy&Tempo"; // <-- HIER dein Wunschpasswort eintragen
+    const eingabe = prompt("Admin-Bereich: Passwort eingeben, um diesen Marker sofort zu löschen:");
+    
+    if (eingabe === passwort) {
+        reportsData.splice(index, 1);
+        drawMarkersOnMap();
+        saveToCommunity();
+        alert("Eintrag wurde als Admin entfernt.");
+    } else if (eingabe !== null) {
+        alert("Zugriff verweigert: Falsches Passwort.");
     }
 }
