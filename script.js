@@ -210,7 +210,7 @@ async function vote(id, change) {
         report.votes += change;
 
         // Auto-Lösch-Logik: Wenn zu viele Leute sagen "Stimmt nicht"
-        if (report.votes <= -5) {
+        if (report.votes <= -3) {
             reportsData = reportsData.filter(r => r.id !== id);
             alert("Dieser Eintrag wurde aufgrund von Community-Meldungen entfernt.");
         }
