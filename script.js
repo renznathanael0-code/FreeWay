@@ -6,6 +6,15 @@ const PANTRY_URL = `https://getpantry.cloud/apiv1/pantry/${PANTRY_ID}/basket/${B
 
 let map, myLocationMarker, reportsData = [], activeMarkers = {};
 
+// 1. Die neuen Splash-Funktionen
+function updateLoading(percent, text) {
+    const bar = document.getElementById('loading-bar');
+    const status = document.getElementById('splash-status');
+    if (bar) bar.style.width = percent + '%';
+    if (status) status.innerText = text;
+}
+
+
 function initMap() {
     map = L.map('map').setView([48.775, 9.182], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
@@ -233,3 +242,46 @@ function adminDelete(index) {
         alert("Zugriff verweigert: Falsches Passwort.");
     }
 }
+
+async function initApp() {
+    const status = document.getElementById('sync-status');
+    const splash = document.getElementById('splash-screen');
+
+    // 1. Karte im Hintergrund laden
+    map = L.map('map').setView([48.775, 9.182], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    map.on('click', e => openSelectionPopup(e.latlng));
+
+    // 2. Daten laden & Status aktualisieren
+    updateStatus("Lade Community-Daten...", "#3498db");
+    
+    try {
+        await loadFromCommunity(); // Deine Funktion
+        updateStatus("Community Live ✅", "#27AE60");
+    } catch (e) {
+        updateStatus("Eingeschränkt bereit ⚠️", "#E67E22");
+    }
+
+    // 3. Der magische Übergang
+    setTimeout(() => {
+        // Splash ausfaden
+        splash.style.opacity = '0';
+        
+        // Nach dem Ausfaden den Splash löschen, damit Klicks durchgehen
+        setTimeout(() => {
+            splash.style.display = 'none';
+            map.invalidateSize();
+        }, 800);
+    }, 1000);
+}
+
+// Deine bestehende updateStatus Funktion kann so bleiben:
+function updateStatus(text, color) {
+    const s = document.getElementById('sync-status');
+    if(s) {
+        s.innerHTML = text;
+        s.style.background = color;
+    }
+}
+
+window.onload = initApp;

@@ -3,19 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FreeWay</title>
+    <title>FreeWay Stuttgart</title>
+
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div id="map"></div>
 
-<div id="sync-status">Community-Status: Verbinde...</div>
+    <div id="splash-screen">
+        <h1 class="logo-text">FreeWay</h1>
+        <div id="sync-status">Verbindung wird aufgebaut...</div>
+    </div>
 
-
+    <div id="map"></div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/pouchdb@8.0.1/dist/pouchdb.min.js"></script>
+    
     <script src="script.js"></script>
+
 </body>
 </html>
