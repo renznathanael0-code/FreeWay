@@ -1,25 +1,19 @@
-// --- COMMUNITY SETUP ---
 const PANTRY_ID = "d9785260-5904-4964-ba0b-8389092f3adb"; 
 const BASKET_NAME = "freeway_stuttgart";
 const PANTRY_URL = `https://getpantry.cloud/apiv1/pantry/${PANTRY_ID}/basket/${BASKET_NAME}`;
 
 let map, myLocationMarker, reportsData = [], activeMarkers = {};
 
-// 1. App Initialisierung (Alles in einer sauberen Funktion)
 async function initApp() {
     const splash = document.getElementById('splash-screen');
 
-    // Karte erstellen
     map = L.map('map').setView([48.775, 9.182], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
     
-    // Klick-Event für neue Marker
     map.on('click', e => openSelectionPopup(e.latlng));
 
-    // STANDORT-TRACKING AKTIVIEREN
     setupLocationTracking();
 
-    // DATEN LADEN
     updateStatus("Lade Community-Daten...", "#3498db");
     try {
         await loadFromCommunity();
@@ -28,7 +22,6 @@ async function initApp() {
         updateStatus("Eingeschränkt bereit ⚠️", "#E67E22");
     }
 
-    // SPLASH SCREEN ÜBERGANG
     setTimeout(() => {
         if(splash) {
             splash.style.opacity = '0';
@@ -40,9 +33,7 @@ async function initApp() {
     }, 1000);
 }
 
-// 2. Die neue Standort-Funktion (Tracking)
 function setupLocationTracking() {
-    // Blaues Design für deinen Standort
     const locationIcon = L.divIcon({
         html: `<div style="background:#3498db; width:12px; height:12px; border-radius:50%; border:3px solid white; box-shadow:0 0 5px rgba(0,0,0,0.5);"></div>`,
         className: '',
@@ -65,8 +56,6 @@ function setupLocationTracking() {
         console.warn("Standort konnte nicht gefunden werden.");
     });
 }
-
-// --- COMMUNITY LOGIK ---
 
 async function loadFromCommunity() {
     try {
@@ -124,10 +113,7 @@ function drawMarkersOnMap() {
         });
 
         const m = L.marker([r.lat, r.lng], {icon}).addTo(map);
-        
-        // REPARIERTER GOOGLE MAPS LINK
         const gMapsUrl = `https://www.google.com/maps?q=${r.lat},${r.lng}`;
-
         const popupContent = `
             <div style="font-family:sans-serif; min-width:180px;">
                 <b>${r.typ}</b><br>
@@ -149,8 +135,6 @@ function drawMarkersOnMap() {
         activeMarkers[index] = m;
     }); 
 }
-
-// ... (Restliche Funktionen: openSelectionPopup, finalizeReport, vote, adminDelete bleiben gleich) ...
 
 function openSelectionPopup(latlng) {
   const content = `
@@ -183,12 +167,25 @@ function finalizeReport(lat, lng, typ, farbe) {
 }
 
 async function vote(id, change) {
+    let myVotes = JSON.parse(localStorage.getItem('userVotes') || "{}");
+
+    if (myVotes[id]) {
+        alert("Du hast für diesen Punkt bereits abgestimmt!");
+        return;
+    }
+
     const report = reportsData.find(r => r.id === id);
     if (report) {
         report.votes += change;
+
+        myVotes[id] = true;
+        localStorage.setItem('userVotes', JSON.stringify(myVotes));
+
         if (report.votes <= -3) {
             reportsData = reportsData.filter(r => r.id !== id);
+            alert("Dieser Punkt wurde aufgrund zu vieler negativer Bewertungen entfernt.");
         }
+
         drawMarkersOnMap();
         saveToCommunity();
     }
@@ -211,16 +208,13 @@ function adminDelete(index) {
     input.focus();
 
     document.getElementById('confirmDel').onclick = () => {
-        // btoa wandelt die Eingabe um und vergleicht sie mit dem Geheimnis
         if (btoa(input.value) === geheimnis) {
             
-            // SICHERHEITS-CHECK: Nur löschen, wenn die Liste nicht leer ist
             if (reportsData && reportsData.length > 0) {
                 
                 reportsData.splice(index, 1);
                 drawMarkersOnMap();
                 
-                // Falls saveToCommunity die Cloud aktualisiert:
                 if (typeof saveToCommunity === "function") {
                     saveToCommunity();
                 }
@@ -239,5 +233,5 @@ function adminDelete(index) {
     document.getElementById('cancelDel').onclick = () => document.body.removeChild(overlay);
 }
 
-// Start der App
+
 window.onload = initApp;
