@@ -202,26 +202,32 @@ async function vote(id, change) {
     }
 }
 
-function adminDelete(index) {
-        
-    // 2. Deine Admin-Funktion (z.B. beim Löschen) so anpassen:
 async function adminDelete(index) {
-    const input = prompt("Admin-Passwort erforderlich:");
-    if (!input) return;
-
-    // Wir hashen die Eingabe des Nutzers...
-    const hashedInput = await hashPass(input);
+    // 1. Das Eingabefeld abfragen
+    const input = prompt("Bitte Admin-Passwort eingeben:");
     
-    // ...und vergleichen sie mit dem gespeicherten "Fingerabdruck"
-    const targetHash = "934e62a046c82705707767d49826372f8546b3f7f892404e4e94326f212284c8";
+    // Abbrechen, wenn nichts eingegeben wurde
+    if (input === null || input === "") return;
 
-    if (hashedInput === targetHash) {
-        // HIER kommt dein Code zum Löschen rein, z.B.:
-        confirmDelete(index); 
-    } else {
-        alert("Zugriff verweigert! Passwort falsch.");
+    try {
+        // 2. Die Eingabe hashen
+        const hashedInput = await hashPass(input);
+        
+        // 3. Der "Salat" deines Passworts
+        const targetHash = "934e62a046c82705707767d49826372f8546b3f7f892404e4e94326f212284c8";
+
+        // 4. Vergleich
+        if (hashedInput === targetHash) {
+            // Wenn korrekt: Hier deine Lösch-Funktion aufrufen
+            actualDeleteLogic(index); 
+        } else {
+            alert("Falsches Passwort!");
+        }
+    } catch (e) {
+        console.error("Fehler beim Hashen:", e);
+        alert("Sicherheitsfehler im Browser.");
     }
 }
-}
+
 // Start der App
 window.onload = initApp;
