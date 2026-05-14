@@ -6,6 +6,15 @@ const PANTRY_URL = `https://getpantry.cloud/apiv1/pantry/${PANTRY_ID}/basket/${B
 let map, myLocationMarker, reportsData = [], activeMarkers = {};
 
 // 1. App Initialisierung (Alles in einer sauberen Funktion)
+// 1. Diese Sicherheits-Funktion ganz oben in deine script.js kopieren
+async function hashPass(text) {
+    const msgBuffer = new TextEncoder().encode(text);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+
 async function initApp() {
     const splash = document.getElementById('splash-screen');
 
@@ -195,23 +204,25 @@ async function vote(id, change) {
 }
 
 function adminDelete(index) {
-    const korrektesPasswort = "fWiS!";
-    const overlay = document.createElement('div');
-    overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:20000; display:flex; justify-content:center; align-items:center;";
-    overlay.innerHTML = `<div style="background:white; padding:20px; border-radius:15px; text-align:center; width:280px;"><h3 style="margin-top:0;">Admin</h3><input type="password" id="adminPassInput" style="width:90%; padding:10px; margin-bottom:15px; border-radius:8px;"><br><button id="confirmDel" style="background:#e74c3c; color:white; border:none; padding:10px; border-radius:8px;">Löschen</button><button id="cancelDel" style="border:none; padding:10px; margin-left:5px;">X</button></div>`;
-    document.body.appendChild(overlay);
-    const input = document.getElementById('adminPassInput');
-    input.focus();
-    document.getElementById('confirmDel').onclick = () => {
-        if (input.value === korrektesPasswort) {
-            reportsData.splice(index, 1);
-            drawMarkersOnMap();
-            saveToCommunity();
-            document.body.removeChild(overlay);
-        } else { alert("Falsch!"); }
-    };
-    document.getElementById('cancelDel').onclick = () => document.body.removeChild(overlay);
-}
+        
+    // 2. Deine Admin-Funktion (z.B. beim Löschen) so anpassen:
+async function adminDelete(index) {
+    const input = prompt("Admin-Passwort erforderlich:");
+    if (!input) return;
 
+    // Wir hashen die Eingabe des Nutzers...
+    const hashedInput = await hashPass(input);
+    
+    // ...und vergleichen sie mit dem gespeicherten "Fingerabdruck"
+    const targetHash = "934e62a046c82705707767d49826372f8546b3f7f892404e4e94326f212284c8";
+
+    if (hashedInput === targetHash) {
+        // HIER kommt dein Code zum Löschen rein, z.B.:
+        confirmDelete(index); 
+    } else {
+        alert("Zugriff verweigert! Passwort falsch.");
+    }
+}
+}
 // Start der App
 window.onload = initApp;
