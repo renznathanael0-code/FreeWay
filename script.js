@@ -191,33 +191,49 @@ async function vote(id, change) {
     }
 }
 
-async function adminDelete(index) {
+async function adminDelete(index, markerObject) {
     const input = prompt("Passwort:");
     if (btoa(input) !== "ZldpUyE=") return alert("Falsch!");
 
+    // 1. Sicherheitscheck: Haben wir überhaupt Daten?
+    if (!reportsData || reportsData.length === 0) {
+        alert("Fehler: Liste ist leer. Löschen abgebrochen.");
+        return;
+    }
+
+    // 2. Den Punkt lokal aus dem Array entfernen
+    const deletedPoint = reportsData.splice(index, 1);
+    console.log("Lösche lokal:", deletedPoint);
+
+    // 3. Den Marker sofort von der Karte entfernen (ohne Reload!)
+    // Falls du das Marker-Objekt übergibst:
+    if (markerObject) {
+        map.removeLayer(markerObject);
+    } else {
+        // Falls wir das Objekt nicht haben, laden wir nur die Marker neu
+        renderMarkers(); 
+    }
+
+    // 4. Jetzt erst im Hintergrund an Pantry senden
     try {
-        const response = await fetch(PANTRY_URL);
-        const currentData = await response.json();
-        let list = currentData.reports || [];
-
-        if (list.length === 0) {
-            alert("Fehler: Die Liste in der Cloud ist bereits leer!");
-            return;
-        }
-
-        list.splice(index, 1);
-
-        await fetch(PANTRY_URL, {
+        const response = await fetch(PANTRY_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reports: list })
+            body: JSON.stringify({ reports: reportsData })
         });
 
-        alert("Punkt gelöscht!");
-        location.reload();
-
+        if (response.ok) {
+            console.log("Cloud-Update erfolgreich.");
+            alert("Punkt gelöscht!");
+        } else {
+            // Falls Cloud-Fehler: Punkt lokal wieder hinzufügen!
+            reportsData.push(deletedPoint[0]);
+            renderMarkers();
+            alert("Cloud-Fehler: Punkt wurde wiederhergestellt.");
+        }
     } catch (err) {
-        alert("Fehler beim Zugriff auf die Cloud!");
+        console.error("Netzwerkfehler:", err);
+        alert("Netzwerkfehler. Der Punkt ist lokal weg, wurde aber in der Cloud evtl. nicht gelöscht.");
     }
 }
 
