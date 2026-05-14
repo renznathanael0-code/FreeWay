@@ -191,22 +191,48 @@ async function vote(id, change) {
     }
 }
 
-function adminDelete(index) {
+async function adminDelete(index) {
+    // 1. Passwort abfragen
     const input = prompt("Bitte Admin-Passwort eingeben:");
+    if (input === null) return; 
+
     if (btoa(input) !== "ZldpUyE=") {
-        alert("Falsch!");
+        alert("Falsches Passwort!");
         return;
     }
 
-    if (!reportsData || reportsData.length === 0) {
-        alert("STOPP! Die Daten wurden nicht korrekt geladen. Löschen abgebrochen, um Datenverlust zu verhindern.");
+    // 2. DIE ENTSCHEIDENDE SICHERUNG
+    // Wir prüfen nicht nur, ob die Liste leer ist, sondern ob sie ÜBERHAUPT existiert
+    if (typeof reportsData === 'undefined' || reportsData === null || reportsData.length === 0) {
+        alert("HALT! Die Liste ist noch nicht geladen oder leer. Löschen unmöglich.");
         return;
     }
 
-    if (confirm("Möchtest du diesen Punkt wirklich unwiderruflich löschen?")) {
-        reportsData.splice(index, 1);
-        
-        saveToPantry(); 
+    // 3. Sicherheitsabfrage
+    const confirmation = confirm(`Möchtest du Punkt #${index} wirklich löschen? (Aktuelle Punkte in Liste: ${reportsData.length})`);
+    if (!confirmation) return;
+
+    // 4. Löschvorgang
+    console.log("Lösche Index:", index);
+    reportsData.splice(index, 1);
+
+    // 5. Speichern mit Erfolgskontrolle
+    try {
+        const response = await fetch(PANTRY_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reports: reportsData })
+        });
+
+        if (response.ok) {
+            alert("Erfolgreich gelöscht! Seite wird jetzt aktualisiert.");
+            location.reload();
+        } else {
+            throw new Error("Pantry-Server Fehler");
+        }
+    } catch (err) {
+        alert("FEHLER: Konnte nicht in Cloud speichern. Die Punkte wurden lokal NICHT gelöscht.");
+        console.error(err);
     }
 }
 
