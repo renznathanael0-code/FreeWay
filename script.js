@@ -5,14 +5,11 @@ async function hashPass(text) {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// --- COMMUNITY SETUP ---
 const PANTRY_ID = "d9785260-5904-4964-ba0b-8389092f3adb"; 
 const BASKET_NAME = "freeway_stuttgart"; 
 const PANTRY_URL = `https://getpantry.cloud/apiv1/pantry/${PANTRY_ID}/basket/${BASKET_NAME}`;
 
 let map, myLocationMarker, reportsData = [], activeMarkers = {};
-
-
 
 async function initApp() {
     const splash = document.getElementById('splash-screen');
@@ -21,10 +18,8 @@ async function initApp() {
     map = L.map('map').setView([48.775, 9.182], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
     
-    // Klick-Event für neue Marker
     map.on('click', e => openSelectionPopup(e.latlng));
 
-    // STANDORT-TRACKING AKTIVIEREN
     setupLocationTracking();
 
     // DATEN LADEN
@@ -48,7 +43,6 @@ async function initApp() {
     }, 1000);
 }
 
-// 2. Die neue Standort-Funktion (Tracking)
 function setupLocationTracking() {
     // Blaues Design für deinen Standort
     const locationIcon = L.divIcon({
@@ -73,8 +67,6 @@ function setupLocationTracking() {
         console.warn("Standort konnte nicht gefunden werden.");
     });
 }
-
-// --- COMMUNITY LOGIK ---
 
 async function loadFromCommunity() {
     try {
@@ -133,7 +125,6 @@ function drawMarkersOnMap() {
 
         const m = L.marker([r.lat, r.lng], {icon}).addTo(map);
         
-        // REPARIERTER GOOGLE MAPS LINK
         const gMapsUrl = `https://www.google.com/maps?q=${r.lat},${r.lng}`;
 
         const popupContent = `
@@ -157,8 +148,6 @@ function drawMarkersOnMap() {
         activeMarkers[index] = m;
     }); 
 }
-
-// ... (Restliche Funktionen: openSelectionPopup, finalizeReport, vote, adminDelete bleiben gleich) ...
 
 function openSelectionPopup(latlng) {
   const content = `
@@ -201,31 +190,14 @@ async function vote(id, change) {
         saveToCommunity();
     }
 }
-
-async function adminDelete(index) {
-    // 1. Das Eingabefeld abfragen
+function adminDelete(index) {
     const input = prompt("Bitte Admin-Passwort eingeben:");
-    
-    // Abbrechen, wenn nichts eingegeben wurde
     if (input === null || input === "") return;
-
-    try {
-        // 2. Die Eingabe hashen
-        const hashedInput = await hashPass(input);
-        
-        // 3. Der "Salat" deines Passworts
-        const targetHash = "934e62a046c82705707767d49826372f8546b3f7f892404e4e94326f212284c8";
-
-        // 4. Vergleich
-        if (hashedInput === targetHash) {
-            // Wenn korrekt: Hier deine Lösch-Funktion aufrufen
-            actualDeleteLogic(index); 
-        } else {
-            alert("Falsches Passwort!");
-        }
-    } catch (e) {
-        console.error("Fehler beim Hashen:", e);
-        alert("Sicherheitsfehler im Browser.");
+    const secret = "ZldpUyE="; 
+    if (btoa(input) === secret) {
+        deleteMarkerOnPantry(index);
+    } else {
+        alert("Falsches Passwort!");
     }
 }
 
