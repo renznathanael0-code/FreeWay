@@ -190,16 +190,43 @@ async function vote(id, change) {
         saveToCommunity();
     }
 }
+// 1. Die Admin-Funktion mit Passwort-Check
 function adminDelete(index) {
     const input = prompt("Bitte Admin-Passwort eingeben:");
+    
     if (input === null || input === "") return;
+
+    // "ZldpUyE=" ist die verschlüsselte Version von deinem Passwort
     const secret = "ZldpUyE="; 
+
     if (btoa(input) === secret) {
-        deleteMarkerOnPantry(index);
+        // WENN PASSWORT RICHTIG:
+        executeDeletion(index); 
     } else {
         alert("Falsches Passwort!");
     }
 }
 
-// Start der App
+function executeDeletion(index) {
+    reportsData.splice(index, 1);
+
+    fetch(PANTRY_URL, {
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reports: reportsData })
+    })
+    .then(response => {
+        if (response.ok) {
+            alert("Eintrag erfolgreich gelöscht!");
+            location.reload(); 
+        } else {
+            alert("Fehler beim Löschen in der Cloud.");
+        }
+    })
+    .catch(error => {
+        console.error("Fehler:", error);
+        alert("Verbindung zur Cloud fehlgeschlagen.");
+    });
+}
+
 window.onload = initApp;
