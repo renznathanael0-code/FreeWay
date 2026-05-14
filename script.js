@@ -1,6 +1,6 @@
 // --- COMMUNITY SETUP ---
 const PANTRY_ID = "d9785260-5904-4964-ba0b-8389092f3adb"; 
-const BASKET_NAME = "freeway_stuttgart";
+const BASKET_NAME = "freeway_stuttgart"; 
 const PANTRY_URL = `https://getpantry.cloud/apiv1/pantry/${PANTRY_ID}/basket/${BASKET_NAME}`;
 
 let map, myLocationMarker, reportsData = [], activeMarkers = {};
