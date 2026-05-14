@@ -190,43 +190,43 @@ async function vote(id, change) {
         saveToCommunity();
     }
 }
-// 1. Die Admin-Funktion mit Passwort-Check
+
 function adminDelete(index) {
     const input = prompt("Bitte Admin-Passwort eingeben:");
-    
-    if (input === null || input === "") return;
+    if (!input) return;
 
-    // "ZldpUyE=" ist die verschlüsselte Version von deinem Passwort
-    const secret = "ZldpUyE="; 
-
-    if (btoa(input) === secret) {
-        // WENN PASSWORT RICHTIG:
-        executeDeletion(index); 
-    } else {
-        alert("Falsches Passwort!");
-    }
-}
-
-function executeDeletion(index) {
-    reportsData.splice(index, 1);
-
-    fetch(PANTRY_URL, {
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reports: reportsData })
-    })
-    .then(response => {
-        if (response.ok) {
-            alert("Eintrag erfolgreich gelöscht!");
-            location.reload(); 
-        } else {
-            alert("Fehler beim Löschen in der Cloud.");
+    if (btoa(input) === "ZldpUyE=") {
+        
+        if (!reportsData || reportsData.length === 0) {
+            alert("Fehler: Die Liste der Punkte ist leer oder nicht geladen!");
+            return;
         }
-    })
-    .catch(error => {
-        console.error("Fehler:", error);
-        alert("Verbindung zur Cloud fehlgeschlagen.");
-    });
+
+        console.log("Lösche Index:", index);
+
+        reportsData.splice(index, 1);
+
+      
+        fetch(PANTRY_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reports: reportsData }) 
+        })
+        .then(response => {
+            if (response.ok) {
+                alert("Erfolg! Der Punkt wurde aus der Cloud gelöscht.");
+                location.reload(); 
+            } else {
+                alert("Die Cloud hat das Löschen abgelehnt.");
+            }
+        })
+        .catch(err => {
+            alert("Netzwerkfehler: " + err);
+        });
+
+    } else {
+        alert("Passwort falsch!");
+    }
 }
 
 window.onload = initApp;
