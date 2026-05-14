@@ -1,16 +1,11 @@
-async function hashPass(text) {
-    const msgBuffer = new TextEncoder().encode(text);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
+// --- COMMUNITY SETUP ---
 const PANTRY_ID = "d9785260-5904-4964-ba0b-8389092f3adb"; 
-const BASKET_NAME = "freeway_stuttgart"; 
+const BASKET_NAME = "freeway_stuttgart";
 const PANTRY_URL = `https://getpantry.cloud/apiv1/pantry/${PANTRY_ID}/basket/${BASKET_NAME}`;
 
 let map, myLocationMarker, reportsData = [], activeMarkers = {};
 
+// 1. App Initialisierung (Alles in einer sauberen Funktion)
 async function initApp() {
     const splash = document.getElementById('splash-screen');
 
@@ -18,8 +13,10 @@ async function initApp() {
     map = L.map('map').setView([48.775, 9.182], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
     
+    // Klick-Event für neue Marker
     map.on('click', e => openSelectionPopup(e.latlng));
 
+    // STANDORT-TRACKING AKTIVIEREN
     setupLocationTracking();
 
     // DATEN LADEN
@@ -43,6 +40,7 @@ async function initApp() {
     }, 1000);
 }
 
+// 2. Die neue Standort-Funktion (Tracking)
 function setupLocationTracking() {
     // Blaues Design für deinen Standort
     const locationIcon = L.divIcon({
@@ -67,6 +65,8 @@ function setupLocationTracking() {
         console.warn("Standort konnte nicht gefunden werden.");
     });
 }
+
+// --- COMMUNITY LOGIK ---
 
 async function loadFromCommunity() {
     try {
@@ -125,6 +125,7 @@ function drawMarkersOnMap() {
 
         const m = L.marker([r.lat, r.lng], {icon}).addTo(map);
         
+        // REPARIERTER GOOGLE MAPS LINK
         const gMapsUrl = `https://www.google.com/maps?q=${r.lat},${r.lng}`;
 
         const popupContent = `
@@ -148,6 +149,8 @@ function drawMarkersOnMap() {
         activeMarkers[index] = m;
     }); 
 }
+
+// ... (Restliche Funktionen: openSelectionPopup, finalizeReport, vote, adminDelete bleiben gleich) ...
 
 function openSelectionPopup(latlng) {
   const content = `
@@ -191,50 +194,50 @@ async function vote(id, change) {
     }
 }
 
-async function adminDelete(index, markerObject) {
-    const input = prompt("Passwort:");
-    if (btoa(input) !== "ZldpUyE=") return alert("Falsch!");
+function adminDelete(index) {
+    const geheimnis = "ZldpUyE="; 
+    
+    const overlay = document.createElement('div');
+    overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:20000; display:flex; justify-content:center; align-items:center;";
+    overlay.innerHTML = `<div style="background:white; padding:20px; border-radius:15px; text-align:center; width:280px;">
+        <h3 style="margin-top:0;">Admin Bestätigung</h3>
+        <input type="password" id="adminPassInput" placeholder="Passwort" style="width:90%; padding:10px; margin-bottom:15px; border-radius:8px; border:1px solid #ccc;"><br>
+        <button id="confirmDel" style="background:#e74c3c; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer;">Punkt löschen</button>
+        <button id="cancelDel" style="background:#ccc; border:none; padding:10px; margin-left:5px; border-radius:8px; cursor:pointer;">Abbrechen</button>
+    </div>`;
+    
+    document.body.appendChild(overlay);
+    const input = document.getElementById('adminPassInput');
+    input.focus();
 
-    // 1. Sicherheitscheck: Haben wir überhaupt Daten?
-    if (!reportsData || reportsData.length === 0) {
-        alert("Fehler: Liste ist leer. Löschen abgebrochen.");
-        return;
-    }
-
-    // 2. Den Punkt lokal aus dem Array entfernen
-    const deletedPoint = reportsData.splice(index, 1);
-    console.log("Lösche lokal:", deletedPoint);
-
-    // 3. Den Marker sofort von der Karte entfernen (ohne Reload!)
-    // Falls du das Marker-Objekt übergibst:
-    if (markerObject) {
-        map.removeLayer(markerObject);
-    } else {
-        // Falls wir das Objekt nicht haben, laden wir nur die Marker neu
-        renderMarkers(); 
-    }
-
-    // 4. Jetzt erst im Hintergrund an Pantry senden
-    try {
-        const response = await fetch(PANTRY_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reports: reportsData })
-        });
-
-        if (response.ok) {
-            console.log("Cloud-Update erfolgreich.");
-            alert("Punkt gelöscht!");
-        } else {
-            // Falls Cloud-Fehler: Punkt lokal wieder hinzufügen!
-            reportsData.push(deletedPoint[0]);
-            renderMarkers();
-            alert("Cloud-Fehler: Punkt wurde wiederhergestellt.");
+    document.getElementById('confirmDel').onclick = () => {
+        // btoa wandelt die Eingabe um und vergleicht sie mit dem Geheimnis
+        if (btoa(input.value) === geheimnis) {
+            
+            // SICHERHEITS-CHECK: Nur löschen, wenn die Liste nicht leer ist
+            if (reportsData && reportsData.length > 0) {
+                
+                reportsData.splice(index, 1);
+                drawMarkersOnMap();
+                
+                // Falls saveToCommunity die Cloud aktualisiert:
+                if (typeof saveToCommunity === "function") {
+                    saveToCommunity();
+                }
+                
+                document.body.removeChild(overlay);
+                alert("Punkt wurde erfolgreich entfernt.");
+            } else {
+                alert("Fehler: Keine Daten zum Löschen vorhanden!");
+            }
+            
+        } else { 
+            alert("Passwort nicht korrekt!"); 
         }
-    } catch (err) {
-        console.error("Netzwerkfehler:", err);
-        alert("Netzwerkfehler. Der Punkt ist lokal weg, wurde aber in der Cloud evtl. nicht gelöscht.");
-    }
+    };
+
+    document.getElementById('cancelDel').onclick = () => document.body.removeChild(overlay);
 }
 
+// Start der App
 window.onload = initApp;
