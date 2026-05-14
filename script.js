@@ -192,47 +192,32 @@ async function vote(id, change) {
 }
 
 async function adminDelete(index) {
-    // 1. Passwort abfragen
-    const input = prompt("Bitte Admin-Passwort eingeben:");
-    if (input === null) return; 
+    const input = prompt("Passwort:");
+    if (btoa(input) !== "ZldpUyE=") return alert("Falsch!");
 
-    if (btoa(input) !== "ZldpUyE=") {
-        alert("Falsches Passwort!");
-        return;
-    }
-
-    // 2. DIE ENTSCHEIDENDE SICHERUNG
-    // Wir prüfen nicht nur, ob die Liste leer ist, sondern ob sie ÜBERHAUPT existiert
-    if (typeof reportsData === 'undefined' || reportsData === null || reportsData.length === 0) {
-        alert("HALT! Die Liste ist noch nicht geladen oder leer. Löschen unmöglich.");
-        return;
-    }
-
-    // 3. Sicherheitsabfrage
-    const confirmation = confirm(`Möchtest du Punkt #${index} wirklich löschen? (Aktuelle Punkte in Liste: ${reportsData.length})`);
-    if (!confirmation) return;
-
-    // 4. Löschvorgang
-    console.log("Lösche Index:", index);
-    reportsData.splice(index, 1);
-
-    // 5. Speichern mit Erfolgskontrolle
     try {
-        const response = await fetch(PANTRY_URL, {
+        const response = await fetch(PANTRY_URL);
+        const currentData = await response.json();
+        let list = currentData.reports || [];
+
+        if (list.length === 0) {
+            alert("Fehler: Die Liste in der Cloud ist bereits leer!");
+            return;
+        }
+
+        list.splice(index, 1);
+
+        await fetch(PANTRY_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reports: reportsData })
+            body: JSON.stringify({ reports: list })
         });
 
-        if (response.ok) {
-            alert("Erfolgreich gelöscht! Seite wird jetzt aktualisiert.");
-            location.reload();
-        } else {
-            throw new Error("Pantry-Server Fehler");
-        }
+        alert("Punkt gelöscht!");
+        location.reload();
+
     } catch (err) {
-        alert("FEHLER: Konnte nicht in Cloud speichern. Die Punkte wurden lokal NICHT gelöscht.");
-        console.error(err);
+        alert("Fehler beim Zugriff auf die Cloud!");
     }
 }
 
