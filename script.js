@@ -1,3 +1,10 @@
+async function hashPass(text) {
+    const msgBuffer = new TextEncoder().encode(text);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 // --- COMMUNITY SETUP ---
 const PANTRY_ID = "d9785260-5904-4964-ba0b-8389092f3adb"; 
 const BASKET_NAME = "freeway_stuttgart"; 
@@ -5,14 +12,6 @@ const PANTRY_URL = `https://getpantry.cloud/apiv1/pantry/${PANTRY_ID}/basket/${B
 
 let map, myLocationMarker, reportsData = [], activeMarkers = {};
 
-// 1. App Initialisierung (Alles in einer sauberen Funktion)
-// 1. Diese Sicherheits-Funktion ganz oben in deine script.js kopieren
-async function hashPass(text) {
-    const msgBuffer = new TextEncoder().encode(text);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
 
 
 async function initApp() {
