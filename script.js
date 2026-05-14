@@ -193,39 +193,20 @@ async function vote(id, change) {
 
 function adminDelete(index) {
     const input = prompt("Bitte Admin-Passwort eingeben:");
-    if (!input) return;
+    if (btoa(input) !== "ZldpUyE=") {
+        alert("Falsch!");
+        return;
+    }
 
-    if (btoa(input) === "ZldpUyE=") {
-        
-        if (!reportsData || reportsData.length === 0) {
-            alert("Fehler: Die Liste der Punkte ist leer oder nicht geladen!");
-            return;
-        }
+    if (!reportsData || reportsData.length === 0) {
+        alert("STOPP! Die Daten wurden nicht korrekt geladen. Löschen abgebrochen, um Datenverlust zu verhindern.");
+        return;
+    }
 
-        console.log("Lösche Index:", index);
-
+    if (confirm("Möchtest du diesen Punkt wirklich unwiderruflich löschen?")) {
         reportsData.splice(index, 1);
-
-      
-        fetch(PANTRY_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reports: reportsData }) 
-        })
-        .then(response => {
-            if (response.ok) {
-                alert("Erfolg! Der Punkt wurde aus der Cloud gelöscht.");
-                location.reload(); 
-            } else {
-                alert("Die Cloud hat das Löschen abgelehnt.");
-            }
-        })
-        .catch(err => {
-            alert("Netzwerkfehler: " + err);
-        });
-
-    } else {
-        alert("Passwort falsch!");
+        
+        saveToPantry(); 
     }
 }
 
