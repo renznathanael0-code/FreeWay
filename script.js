@@ -167,28 +167,59 @@ function finalizeReport(lat, lng, typ, farbe) {
 }
 
 async function vote(id, change) {
-    let myVotes = JSON.parse(localStorage.getItem('userVotes') || "{}");
-
-    if (myVotes[id]) {
-        alert("Du hast für diesen Punkt bereits abgestimmt!");
+    if (!navigator.geolocation) {
+        alert("Dein Browser unterstützt keine Standortabfrage.");
         return;
     }
 
-    const report = reportsData.find(r => r.id === id);
-    if (report) {
-        report.votes += change;
+    navigator.geolocation.getCurrentPosition(async (position) => {
+        const userLat = position.coords.latitude;
+        const userLng = position.coords.longitude;
 
+        const report = reportsData.find(r => r.id === id);
+        if (!report) return;
+
+
+        const distanz = calculateDistance(userLat, userLng, report.lat, report.lng);
+
+        if (distanz > 0.2) {
+            alert(`Du bist zu weit entfernt (${Math.round(distanz * 1000)}m). Du musst im Umkreis von 200m sein, um abzustimmen.`);
+            return;
+        }
+
+        let myVotes = JSON.parse(localStorage.getItem('userVotes') || "{}");
+        if (myVotes[id]) {
+            alert("Du hast für diesen Punkt bereits abgestimmt!");
+            return;
+        }
+
+
+        report.votes += change;
         myVotes[id] = true;
         localStorage.setItem('userVotes', JSON.stringify(myVotes));
 
         if (report.votes <= -3) {
             reportsData = reportsData.filter(r => r.id !== id);
-            alert("Dieser Punkt wurde aufgrund zu vieler negativer Bewertungen entfernt.");
+            alert("Punkt aufgrund negativer Bewertungen entfernt.");
         }
 
         drawMarkersOnMap();
         saveToCommunity();
-    }
+
+    }, (error) => {
+        alert("Standortzugriff verweigert. Ohne Standort kannst du nicht voten.");
+    });
+}
+
+function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Erdradius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
 }
 
 function adminDelete(index) {
