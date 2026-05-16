@@ -1,3 +1,14 @@
+
+const isAdminPage = window.location.pathname.includes("admin.html");
+
+if (isAdminPage) {
+    const login = prompt("StepFree Admin-Bereich\nBitte Passwort eingeben:");
+    if (btoa(login) !== "ZldpUyE=") { 
+        alert("Zugriff verweigert!");
+        window.location.href = "index.html"; 
+    }
+}
+
 const PANTRY_ID = "d9785260-5904-4964-ba0b-8389092f3adb"; 
 const BASKET_NAME = "freeway_stuttgart";
 const PANTRY_URL = `https://getpantry.cloud/apiv1/pantry/${PANTRY_ID}/basket/${BASKET_NAME}`;
@@ -94,10 +105,22 @@ function updateStatus(text, color) {
 }
 
 function drawMarkersOnMap() {
+    // 1. Prüfen: Sind wir auf der Admin-Seite?
+    const isAdminPage = window.location.pathname.includes("admin.html");
+
+    // 2. Karte säubern
     Object.values(activeMarkers).forEach(m => map.removeLayer(m));
     activeMarkers = {};
 
+    // 3. Marker durchlaufen
     reportsData.forEach((r, index) => {
+        
+        // SICHERHEITS-CHECK FÜR BÜRGER:
+        // Wenn der Punkt im "review" ist (wegen -3 Votes), sieht ihn nur der Admin
+        if (r.status === "review" && !isAdminPage) {
+            return; 
+        }
+
         let emoji = "📍";
         if (r.typ.includes("Treppe")) emoji = "🪜";
         if (r.typ.includes("defekt")) emoji = "🛗";
@@ -107,33 +130,72 @@ function drawMarkersOnMap() {
         if (r.typ.includes("Baustelle")) emoji = "🚧";
 
         const icon = L.divIcon({
-            html: `<div style="background:${r.farbe}; width:30px; height:30px; display:flex; align-items:center; justify-content:center; border-radius:50%; border:2px solid white; color:white;">${emoji}</div>`,
+            html: `<div style="background:${r.farbe}; width:30px; height:30px; display:flex; align-items:center; justify-content:center; border-radius:50%; border:2px solid white; color:white; ${r.status === 'review' ? 'box-shadow: 0 0 10px red; border: 2px solid red;' : ''}">${emoji}</div>`,
             className: '', 
             iconSize: [30, 30]
         });
 
         const m = L.marker([r.lat, r.lng], {icon}).addTo(map);
         const gMapsUrl = `https://www.google.com/maps?q=${r.lat},${r.lng}`;
-        const popupContent = `
+        
+        // POPUP INHALT AUFBAUEN
+        let popupContent = `
             <div style="font-family:sans-serif; min-width:180px;">
+                ${r.status === 'review' ? '<b style="color:red;">⚠️ IN PRÜFUNG</b><br>' : ''}
                 <b>${r.typ}</b><br>
                 <p style="margin: 5px 0;">${r.kommentar}</p>
                 <div style="background:#eee; padding:5px; border-radius:5px; text-align:center; margin-bottom:10px; font-size: 0.9em;">
                     Vertrauen: <b>${r.votes || 0}</b>
-                </div>
+                </div>`;
+
+        // Normale Voting-Buttons (immer anzeigen)
+        popupContent += `
                 <div style="display:flex; gap:5px; margin-bottom:10px;">
                     <button onclick="vote('${r.id}', 1)" style="flex:1; background:#27AE60; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer; font-weight:bold;">✅ Stimmt</button>
                     <button onclick="vote('${r.id}', -1)" style="flex:1; background:#E67E22; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer; font-weight:bold;">❌ Falsch</button>
                 </div>
                 <a href="${gMapsUrl}" target="_blank" style="text-decoration:none;">
                     <button style="background:#4285F4; color:white; border:none; padding:10px; width:100%; border-radius:5px; margin-bottom:10px; cursor:pointer; font-weight:bold;">🗺️ Google Maps</button>
-                </a>
-                <button onclick="adminDelete(${index})" style="background:none; color:#999; border:none; font-size:10px; cursor:pointer; width:100%; margin-top:5px;">⚙️ Admin-Löschung</button>
-            </div>`; 
+                </a>`;
+
+        // SPEZIAL-BUTTONS NUR FÜR ADMINS
+        if (isAdminPage) {
+            popupContent += `
+                <div style="border-top:1px solid #ccc; padding-top:10px; margin-top:5px;">
+                    <button onclick="directDelete('${r.id}')" style="background:#e74c3c; color:white; border:none; padding:8px; width:100%; border-radius:5px; cursor:pointer; font-weight:bold; margin-bottom:5px;">🗑️ Endgültig Löschen</button>
+                    <button onclick="askForPhoto('${r.id}')" style="background:#3498db; color:white; border:none; padding:8px; width:100%; border-radius:5px; cursor:pointer; font-weight:bold;">📸 Beweis anfordern</button>
+                </div>`;
+        } else {
+            // Für Bürger: Ein Hinweis, wenn ein Beweis gefordert wurde
+            if (r.needsPhoto) {
+                popupContent += `<p style="color:#D35400; font-size:11px; text-align:center; font-weight:bold;">⚠️ Admin bittet um Beweisfoto vor Ort!</p>`;
+            }
+        }
+
+        popupContent += `</div>`; 
 
         m.bindPopup(popupContent);
         activeMarkers[index] = m;
     }); 
+}
+
+function directDelete(id) {
+    if (confirm("Diesen Punkt wirklich für alle löschen?")) {
+        reportsData = reportsData.filter(r => r.id !== id);
+        saveToCommunity();
+        drawMarkersOnMap();
+    }
+}
+
+function askForPhoto(id) {
+    const r = reportsData.find(item => item.id === id);
+    if (r) {
+        r.needsPhoto = true;
+        r.status = "active"; // Wieder sichtbar machen, falls er im Review war
+        saveToCommunity();
+        drawMarkersOnMap();
+        alert("Beweisfoto-Anforderung ist raus!");
+    }
 }
 
 function openSelectionPopup(latlng) {
@@ -167,102 +229,29 @@ function finalizeReport(lat, lng, typ, farbe) {
 }
 
 async function vote(id, change) {
-    if (!navigator.geolocation) {
-        alert("Dein Browser unterstützt keine Standortabfrage.");
+    let myVotes = JSON.parse(localStorage.getItem('userVotes') || "{}");
+
+    if (myVotes[id]) {
+        alert("Du hast für diesen Ort bereits abgestimmt!");
         return;
     }
 
-    navigator.geolocation.getCurrentPosition(async (position) => {
-        const userLat = position.coords.latitude;
-        const userLng = position.coords.longitude;
-
-        const report = reportsData.find(r => r.id === id);
-        if (!report) return;
-
-
-        const distanz = calculateDistance(userLat, userLng, report.lat, report.lng);
-
-        if (distanz > 0.2) {
-            alert(`Du bist zu weit entfernt (${Math.round(distanz * 1000)}m). Du musst im Umkreis von 200m sein, um abzustimmen.`);
-            return;
-        }
-
-        let myVotes = JSON.parse(localStorage.getItem('userVotes') || "{}");
-        if (myVotes[id]) {
-            alert("Du hast für diesen Punkt bereits abgestimmt!");
-            return;
-        }
-
-
+    const report = reportsData.find(r => r.id === id);
+    if (report) {
+      
         report.votes += change;
+
         myVotes[id] = true;
         localStorage.setItem('userVotes', JSON.stringify(myVotes));
 
-        if (report.votes <= -3) {
-            reportsData = reportsData.filter(r => r.id !== id);
-            alert("Punkt aufgrund negativer Bewertungen entfernt.");
-        }
+
+    if (report.votes <= -3) {
+    report.status = "review";
+}
 
         drawMarkersOnMap();
         saveToCommunity();
-
-    }, (error) => {
-        alert("Standortzugriff verweigert. Ohne Standort kannst du nicht voten.");
-    });
+    }
 }
-
-function calculateDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371; // Erdradius in km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-}
-
-function adminDelete(index) {
-    const geheimnis = "ZldpUyE="; 
-    
-    const overlay = document.createElement('div');
-    overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:20000; display:flex; justify-content:center; align-items:center;";
-    overlay.innerHTML = `<div style="background:white; padding:20px; border-radius:15px; text-align:center; width:280px;">
-        <h3 style="margin-top:0;">Admin Bestätigung</h3>
-        <input type="password" id="adminPassInput" placeholder="Passwort" style="width:90%; padding:10px; margin-bottom:15px; border-radius:8px; border:1px solid #ccc;"><br>
-        <button id="confirmDel" style="background:#e74c3c; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer;">Punkt löschen</button>
-        <button id="cancelDel" style="background:#ccc; border:none; padding:10px; margin-left:5px; border-radius:8px; cursor:pointer;">Abbrechen</button>
-    </div>`;
-    
-    document.body.appendChild(overlay);
-    const input = document.getElementById('adminPassInput');
-    input.focus();
-
-    document.getElementById('confirmDel').onclick = () => {
-        if (btoa(input.value) === geheimnis) {
-            
-            if (reportsData && reportsData.length > 0) {
-                
-                reportsData.splice(index, 1);
-                drawMarkersOnMap();
-                
-                if (typeof saveToCommunity === "function") {
-                    saveToCommunity();
-                }
-                
-                document.body.removeChild(overlay);
-                alert("Punkt wurde erfolgreich entfernt.");
-            } else {
-                alert("Fehler: Keine Daten zum Löschen vorhanden!");
-            }
-            
-        } else { 
-            alert("Passwort nicht korrekt!"); 
-        }
-    };
-
-    document.getElementById('cancelDel').onclick = () => document.body.removeChild(overlay);
-}
-
 
 window.onload = initApp;
