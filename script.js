@@ -261,39 +261,48 @@ async function vote(id, change) {
 }
 
 function startPhotoVerification(id) {
-    // 1. Standort prüfen
-    navigator.geolocation.getCurrentPosition((pos) => {
-        const report = reportsData.find(r => r.id === id);
-        const dist = getDistance(pos.coords.latitude, pos.coords.longitude, report.lat, report.lng);
+    // 1. Wir erstellen den Kamera-Input
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.capture = 'environment'; // Erzwingt auf Handys die Kamera
 
-        if (dist > 0.05) { // 50 Meter
-            alert(`Du bist zu weit weg (${Math.round(dist * 1000)}m). Gehe näher an das Hindernis heran.`);
-            return;
-        }
+    // 2. Was passiert, wenn das Foto gemacht wurde?
+    fileInput.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
 
-        // 2. Kamera öffnen (Input-Trick für Handys)
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = 'image/*';
-        fileInput.capture = 'environment'; // Öffnet direkt die Kamera auf dem Handy
+        // 3. Erst JETZT prüfen wir den Standort, während das Bild geladen wird
+        navigator.geolocation.getCurrentPosition((pos) => {
+            const report = reportsData.find(r => r.id === id);
+            const dist = getDistance(pos.coords.latitude, pos.coords.longitude, report.lat, report.lng);
 
-        fileInput.onchange = (e) => {
-            const file = e.target.files[0];
+            // 50 Meter Radius Check
+            if (dist > 0.05) { 
+                alert(`Beweis abgelehnt! Du bist zu weit entfernt (${Math.round(dist * 1000)}m). Du musst direkt vor Ort sein.`);
+                return;
+            }
+
+            // 4. Wenn Standort okay: Bild verarbeiten
             const reader = new FileReader();
             reader.onload = (event) => {
-                // Bild im Report speichern
                 report.evidencePhoto = event.target.result;
-                report.needsPhoto = false; // Anforderung erfüllt
-                report.votes += 1; // Belohnung für das Foto
+                report.needsPhoto = false;
+                report.status = "active"; // Wieder für alle sichtbar
                 
-                alert("Beweis erfolgreich hochgeladen! Danke für deine Hilfe.");
+                alert("Standort verifiziert & Foto hochgeladen!");
                 saveToCommunity();
                 drawMarkersOnMap();
             };
-            reader.readAsDataURL(file); // Wandelt Bild in Text um
-        };
-        fileInput.click();
-    }, () => alert("Standortzugriff erforderlich!"));
+            reader.readAsDataURL(file);
+
+        }, () => {
+            alert("Standort-Zugriff verweigert. Ohne GPS kein Beweis möglich!");
+        });
+    };
+
+    // 5. Den Klick sofort ausführen
+    fileInput.click();
 }
 
 window.onload = initApp;
