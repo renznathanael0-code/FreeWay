@@ -167,10 +167,15 @@ function drawMarkersOnMap() {
                 </div>`;
         } else {
             // Für Bürger: Ein Hinweis, wenn ein Beweis gefordert wurde
-            if (r.needsPhoto) {
-                popupContent += `<p style="color:#D35400; font-size:11px; text-align:center; font-weight:bold;">⚠️ Admin bittet um Beweisfoto vor Ort!</p>`;
-            }
-        }
+            // ... in der drawMarkersOnMap Funktion bei den Admin-Zusätzen ...
+if (isAdminPage && r.evidencePhoto) {
+    popupContent += `
+        <div style="margin-top:10px;">
+            <b style="color:green;">📸 Beweisfoto vorhanden:</b><br>
+            <img src="${r.evidencePhoto}" style="width:100%; border-radius:5px; margin-top:5px; cursor:pointer;" onclick="window.open(this.src)">
+        </div>`;
+}
+}
 
         popupContent += `</div>`; 
 
@@ -229,29 +234,66 @@ function finalizeReport(lat, lng, typ, farbe) {
 }
 
 async function vote(id, change) {
-    let myVotes = JSON.parse(localStorage.getItem('userVotes') || "{}");
+    const report = reportsData.find(r => r.id === id);
+    if (!report) return;
 
-    if (myVotes[id]) {
-        alert("Du hast für diesen Ort bereits abgestimmt!");
-        return;
+    // Falls ein Foto angefordert wurde, muss erst das Foto kommen
+    if (report.needsPhoto && !isAdminPage) {
+        alert("Der Admin hat für diesen Punkt eine Verifizierung angefordert. Bitte mache ein Beweisfoto vor Ort.");
+        startPhotoVerification(id);
+        return; // Voten erst nach Foto möglich
     }
 
-    const report = reportsData.find(r => r.id === id);
-    if (report) {
-      
-        report.votes += change;
+    // Normaler Voting-Ablauf
+    let myVotes = JSON.parse(localStorage.getItem('userVotes') || "{}");
+    if (myVotes[id]) return alert("Bereits abgestimmt!");
 
-        myVotes[id] = true;
-        localStorage.setItem('userVotes', JSON.stringify(myVotes));
-
+    report.votes += change;
+    myVotes[id] = true;
+    localStorage.setItem('userVotes', JSON.stringify(myVotes));
 
     if (report.votes <= -3) {
-    report.status = "review";
+        report.status = "review";
+    }
+
+    saveToCommunity();
+    drawMarkersOnMap();
 }
 
-        drawMarkersOnMap();
-        saveToCommunity();
-    }
+function startPhotoVerification(id) {
+    // 1. Standort prüfen
+    navigator.geolocation.getCurrentPosition((pos) => {
+        const report = reportsData.find(r => r.id === id);
+        const dist = getDistance(pos.coords.latitude, pos.coords.longitude, report.lat, report.lng);
+
+        if (dist > 0.05) { // 50 Meter
+            alert(`Du bist zu weit weg (${Math.round(dist * 1000)}m). Gehe näher an das Hindernis heran.`);
+            return;
+        }
+
+        // 2. Kamera öffnen (Input-Trick für Handys)
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/*';
+        fileInput.capture = 'environment'; // Öffnet direkt die Kamera auf dem Handy
+
+        fileInput.onchange = (e) => {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                // Bild im Report speichern
+                report.evidencePhoto = event.target.result;
+                report.needsPhoto = false; // Anforderung erfüllt
+                report.votes += 1; // Belohnung für das Foto
+                
+                alert("Beweis erfolgreich hochgeladen! Danke für deine Hilfe.");
+                saveToCommunity();
+                drawMarkersOnMap();
+            };
+            reader.readAsDataURL(file); // Wandelt Bild in Text um
+        };
+        fileInput.click();
+    }, () => alert("Standortzugriff erforderlich!"));
 }
 
 window.onload = initApp;
