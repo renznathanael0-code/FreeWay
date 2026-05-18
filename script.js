@@ -15,7 +15,7 @@ const PANTRY_URL = `https://getpantry.cloud/apiv1/pantry/${PANTRY_ID}/basket/${B
 
 let map, myLocationMarker, reportsData = [], activeMarkers = {};
 
-// Distanzberechnung für die 50m-Prüfung
+// Distanzberechnung für den Vor-Ort-Check
 function getDistance(lat1, lon1, lat2, lon2) {
     const R = 6371; 
     const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -23,7 +23,7 @@ function getDistance(lat1, lon1, lat2, lon2) {
     const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
               Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
+    return R * c; // Kilometer
 }
 
 async function initApp() {
@@ -90,7 +90,7 @@ async function saveToCommunity() {
             body: JSON.stringify({ markers: reportsData })
         });
         updateStatus("Community Live ✅", "#27AE60");
-    } catch (err) { alert("Speichern fehlgeschlagen."); }
+    } catch (err) { console.error("Speichern fehlgeschlagen."); }
 }
 
 function updateStatus(text, color) {
@@ -103,16 +103,12 @@ function updateStatus(text, color) {
 
 function drawMarkersOnMap() {
     const isAdminPage = window.location.pathname.includes("admin.html");
-    
-    // Karte leeren
     Object.values(activeMarkers).forEach(m => map.removeLayer(m));
     activeMarkers = {};
 
     reportsData.forEach((r, index) => {
-        // 1. Sichtbarkeit prüfen (Punkte im Review sieht nur der Admin)
         if (r.status === "review" && !isAdminPage) return; 
 
-        // 2. Icon/Emoji bestimmen
         let emoji = "📍";
         if (r.typ.includes("Treppe")) emoji = "🪜";
         if (r.typ.includes("defekt")) emoji = "🛗";
@@ -128,28 +124,28 @@ function drawMarkersOnMap() {
         });
 
         const m = L.marker([r.lat, r.lng], {icon}).addTo(map);
-        const gMapsUrl = `https://www.google.com/maps?q=${r.lat},${r.lng}`;
+        const gMapsUrl = `https://www.google.com/maps/search/?api=1&query=${r.lat},${r.lng}`;
         
-        // 3. Popup-Inhalt (Basis-Info)
-        let popupContent = `
-            <div style="font-family:sans-serif; min-width:200px;">
-                ${r.status === 'review' ? '<b style="color:red;">⚠️ IN PRÜFUNG (Votes <= -3)</b><br>' : ''}
+        let popupContent = `<div style="font-family:sans-serif; min-width:200px;">`;
+        
+        if (r.status === 'review') popupContent += `<b style="color:red;">⚠️ IN PRÜFUNG</b><br>`;
+        
+        popupContent += `
                 <b style="font-size:1.1em;">${r.typ}</b><br>
                 <p style="margin: 5px 0; color:#555;">${r.kommentar}</p>
                 <div style="background:#eee; padding:5px; border-radius:5px; text-align:center; margin-bottom:10px; font-size: 0.9em;">
-                    Community-Vertrauen: <b>${r.votes || 0}</b>
+                    Vertrauen: <b>${r.votes || 0}</b>
                 </div>`;
 
-        // 4. BILD-ANZEIGE FÜR ADMIN (Das ist der entscheidende Teil!)
-        if (isAdminPage && r.evidencePhoto) {
+        // Check-In Status Anzeige
+        if (r.verifiedAt) {
             popupContent += `
-                <div style="margin: 10px 0; border: 2px solid #27AE60; border-radius: 8px; padding: 5px; background: #f9f9f9;">
-                    <b style="color:#27AE60; font-size: 0.8em;">📸 BEWEISFOTO VOR ORT:</b><br>
-                    <img src="${r.evidencePhoto}" style="width:100%; border-radius:5px; margin-top:5px; cursor:pointer;" onclick="window.open(this.src)">
+                <div style="background:#D4EFDF; color:#1D8348; padding:8px; border-radius:5px; margin-bottom:10px; font-size:0.85em; border:1px solid #27AE60;">
+                    <b>✅ Vor Ort verifiziert</b><br>
+                    <small>Geprüft am: ${r.verifiedAt}</small>
                 </div>`;
         }
 
-        // 5. Buttons (Voting & Maps)
         popupContent += `
                 <div style="display:flex; gap:5px; margin-bottom:10px;">
                     <button onclick="vote('${r.id}', 1)" style="flex:1; background:#27AE60; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer; font-weight:bold;">✅ Stimmt</button>
@@ -159,19 +155,21 @@ function drawMarkersOnMap() {
                     <button style="background:#4285F4; color:white; border:none; padding:10px; width:100%; border-radius:5px; margin-bottom:10px; cursor:pointer; font-weight:bold;">🗺️ Google Maps</button>
                 </a>`;
 
-        // 6. Admin-Steuerung
         if (isAdminPage) {
             popupContent += `
                 <div style="border-top:1px solid #ccc; padding-top:10px; margin-top:5px;">
                     <button onclick="directDelete('${r.id}')" style="background:#e74c3c; color:white; border:none; padding:8px; width:100%; border-radius:5px; cursor:pointer; font-weight:bold; margin-bottom:5px;">🗑️ Endgültig Löschen</button>
-                    <button onclick="askForPhoto('${r.id}')" style="background:#3498db; color:white; border:none; padding:8px; width:100%; border-radius:5px; cursor:pointer; font-weight:bold;">📸 Foto anfordern</button>
+                    <button onclick="askForCheck('${r.id}')" style="background:#3498db; color:white; border:none; padding:8px; width:100%; border-radius:5px; cursor:pointer; font-weight:bold;">📍 Vor-Ort-Check anfordern</button>
                 </div>`;
-        } else if (r.needsPhoto) {
-            popupContent += `<p style="color:#D35400; font-size:11px; text-align:center; font-weight:bold; background:#fff3cd; padding:5px; border-radius:5px;">⚠️ Admin bittet um Beweisfoto vor Ort!</p>`;
+        } else if (r.needsCheck) {
+            popupContent += `
+                <div style="background:#fff3cd; padding:10px; border-radius:5px; border:1px solid #ffeeba; text-align:center;">
+                    <p style="color:#856404; font-size:11px; font-weight:bold; margin-bottom:8px;">⚠️ Admin bittet um Bestätigung vor Ort!</p>
+                    <button onclick="verifyByLocation('${r.id}')" style="background:#f39c12; color:white; border:none; padding:8px; width:100%; border-radius:5px; cursor:pointer; font-weight:bold;">📍 Jetzt einchecken</button>
+                </div>`;
         }
 
         popupContent += `</div>`; 
-
         m.bindPopup(popupContent);
         activeMarkers[index] = m;
     }); 
@@ -185,36 +183,53 @@ function directDelete(id) {
     }
 }
 
-function askForPhoto(id) {
+function askForCheck(id) {
     const r = reportsData.find(item => item.id === id);
     if (r) {
-        r.needsPhoto = true;
+        r.needsCheck = true;
         r.status = "active"; 
         saveToCommunity();
         drawMarkersOnMap();
-        alert("Beweisfoto-Anforderung ist raus!");
+        alert("Vor-Ort-Check wurde angefordert!");
     }
+}
+
+function verifyByLocation(id) {
+    updateStatus("Prüfe Standort...", "#3498db");
+    navigator.geolocation.getCurrentPosition((pos) => {
+        const report = reportsData.find(r => r.id === id);
+        const dist = getDistance(pos.coords.latitude, pos.coords.longitude, report.lat, report.lng);
+
+        // 50 Meter Radius (0.05 km)
+        if (dist <= 0.05) { 
+            report.needsCheck = false;
+            report.verifiedAt = new Date().toLocaleString('de-DE');
+            saveToCommunity();
+            drawMarkersOnMap();
+            alert("Erfolgreich! Dein Standort wurde verifiziert und der Punkt bestätigt.");
+        } else {
+            alert(`Check-In fehlgeschlagen! Du bist ${Math.round(dist * 1000)}m entfernt. Du musst näher am Hindernis sein (max. 50m).`);
+        }
+        updateStatus("Community Live ✅", "#27AE60");
+    }, () => alert("GPS-Zugriff verweigert! Ohne Standort kein Check-In möglich."));
 }
 
 function openSelectionPopup(latlng) {
   const content = `
-    <div style="width: 280px !important; font-family: sans-serif; padding: 10px; background: white;">
-      <b style="font-size: 1.2em; display: block; text-align: center; margin-bottom: 15px; color: #333;">Eintrag hinzufügen</b>
-      <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
-        <button onclick="finalizeReport(${latlng.lat}, ${latlng.lng}, 'Treppe', '#E74C3C')" style="background:#E74C3C; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; display: flex; align-items: center; width: 100%; cursor:pointer;"><span style="font-size: 20px; margin-right: 15px;">🪜</span> Treppe melden</button>
-        <button onclick="finalizeReport(${latlng.lat}, ${latlng.lng}, 'Aufzug defekt', '#E67E22')" style="background:#E67E22; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; display: flex; align-items: center; width: 100%; cursor:pointer;"><span style="font-size: 20px; margin-right: 15px;">🛗</span> Aufzug defekt</button>
-        <button onclick="finalizeReport(${latlng.lat}, ${latlng.lng}, 'Baustelle', '#F1C40F')" style="background:#F1C40F; color:black; border:none; padding:12px; border-radius:8px; font-weight:bold; display: flex; align-items: center; width: 100%; cursor:pointer;"><span style="font-size: 20px; margin-right: 15px;">🚧</span> Baustelle / Sperrung</button>
-        
-        <hr style="border: 0; border-top: 1px solid #eee; margin: 5px 0;">
-        
-        <button onclick="finalizeReport(${latlng.lat}, ${latlng.lng}, 'Aufzug vorhanden', '#27AE60')" style="background:#27AE60; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; display: flex; align-items: center; width: 100%; cursor:pointer;"><span style="font-size: 20px; margin-right: 15px;">🛗</span> Aufzug vorhanden</button>
-        <button onclick="finalizeReport(${latlng.lat}, ${latlng.lng}, 'WC barrierefrei', '#2ECC71')" style="background:#2ECC71; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; display: flex; align-items: center; width: 100%; cursor:pointer;"><span style="font-size: 20px; margin-right: 15px;">🚽</span> WC barrierefrei</button>
-        <button onclick="finalizeReport(${latlng.lat}, ${latlng.lng}, 'Parkplatz', '#3498DB')" style="background:#3498DB; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; display: flex; align-items: center; width: 100%; cursor:pointer;"><span style="font-size: 20px; margin-right: 15px;">🅿️</span> Behinderten-Parkplatz</button>
-        <button onclick="finalizeReport(${latlng.lat}, ${latlng.lng}, 'Barrierefreier Ort', '#9B59B6')" style="background:#9B59B6; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; display: flex; align-items: center; width: 100%; cursor:pointer;"><span style="font-size: 20px; margin-right: 15px;">📍</span> Barrierefreier Ort</button>
+    <div style="width: 280px; font-family: sans-serif; padding: 10px;">
+      <b style="display: block; text-align: center; margin-bottom: 15px;">Eintrag hinzufügen</b>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <button onclick="finalizeReport(${latlng.lat}, ${latlng.lng}, 'Treppe', '#E74C3C')" style="background:#E74C3C; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;">🪜 Treppe melden</button>
+        <button onclick="finalizeReport(${latlng.lat}, ${latlng.lng}, 'Aufzug defekt', '#E67E22')" style="background:#E67E22; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;">🛗 Aufzug defekt</button>
+        <button onclick="finalizeReport(${latlng.lat}, ${latlng.lng}, 'Baustelle', '#F1C40F')" style="background:#F1C40F; color:black; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;">🚧 Baustelle</button>
+        <hr>
+        <button onclick="finalizeReport(${latlng.lat}, ${latlng.lng}, 'Aufzug vorhanden', '#27AE60')" style="background:#27AE60; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;">🛗 Aufzug vorhanden</button>
+        <button onclick="finalizeReport(${latlng.lat}, ${latlng.lng}, 'WC barrierefrei', '#2ECC71')" style="background:#2ECC71; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;">🚽 WC barrierefrei</button>
+        <button onclick="finalizeReport(${latlng.lat}, ${latlng.lng}, 'Parkplatz', '#3498DB')" style="background:#3498DB; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;">🅿️ Parkplatz</button>
+        <button onclick="finalizeReport(${latlng.lat}, ${latlng.lng}, 'Barrierefreier Ort', '#9B59B6')" style="background:#9B59B6; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;">📍 Barrierefreier Ort</button>
       </div>
     </div>`;
-
-  L.popup({ maxWidth: 320, minWidth: 280 }).setLatLng(latlng).setContent(content).openOn(map);
+  L.popup().setLatLng(latlng).setContent(content).openOn(map);
 }
 
 function finalizeReport(lat, lng, typ, farbe) {
@@ -231,45 +246,18 @@ function finalizeReport(lat, lng, typ, farbe) {
 async function vote(id, change) {
     const report = reportsData.find(r => r.id === id);
     if (!report) return;
-    if (report.needsPhoto && !isAdminPage) {
-        startPhotoVerification(id);
-        return;
-    }
+    
     let myVotes = JSON.parse(localStorage.getItem('userVotes') || "{}");
     if (myVotes[id]) return alert("Bereits abgestimmt!");
+    
     report.votes += change;
     myVotes[id] = true;
     localStorage.setItem('userVotes', JSON.stringify(myVotes));
+    
     if (report.votes <= -3) report.status = "review";
+    
     saveToCommunity();
     drawMarkersOnMap();
-}
-
-function startPhotoVerification(id) {
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = 'image/*';
-    fileInput.capture = 'environment';
-    fileInput.onchange = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        navigator.geolocation.getCurrentPosition((pos) => {
-            const report = reportsData.find(r => r.id === id);
-            const dist = getDistance(pos.coords.latitude, pos.coords.longitude, report.lat, report.lng);
-            if (dist > 0.05) return alert("Zu weit entfernt (50m Radius)!");
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                report.evidencePhoto = event.target.result;
-                report.needsPhoto = false;
-                report.status = "active";
-                saveToCommunity();
-                drawMarkersOnMap();
-                alert("Beweis hochgeladen!");
-            };
-            reader.readAsDataURL(file);
-        }, () => alert("GPS erforderlich!"));
-    };
-    fileInput.click();
 }
 
 window.onload = initApp;
