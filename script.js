@@ -102,12 +102,15 @@ function updateStatus(text, color) {
 }
 
 function drawMarkersOnMap() {
+    const isAdminPage = window.location.pathname.includes("admin.html");
     Object.values(activeMarkers).forEach(m => map.removeLayer(m));
     activeMarkers = {};
 
     reportsData.forEach((r, index) => {
+        // 1. Sichtbarkeits-Check
         if (r.status === "review" && !isAdminPage) return; 
 
+        // 2. Emoji-Logik
         let emoji = "📍";
         if (r.typ.includes("Treppe")) emoji = "🪜";
         if (r.typ.includes("defekt")) emoji = "🛗";
@@ -125,14 +128,20 @@ function drawMarkersOnMap() {
         const m = L.marker([r.lat, r.lng], {icon}).addTo(map);
         const gMapsUrl = `https://www.google.com/maps?q=${r.lat},${r.lng}`;
         
-        let popupContent = `
-            <div style="font-family:sans-serif; min-width:180px;">
-                ${r.status === 'review' ? '<b style="color:red;">⚠️ IN PRÜFUNG</b><br>' : ''}
+        // 3. Popup-Inhalt zusammenbauen
+        let popupContent = `<div style="font-family:sans-serif; min-width:180px;">`;
+        
+        if (r.status === 'review') popupContent += `<b style="color:red;">⚠️ IN PRÜFUNG</b><br>`;
+        
+        popupContent += `
                 <b>${r.typ}</b><br>
                 <p style="margin: 5px 0;">${r.kommentar}</p>
                 <div style="background:#eee; padding:5px; border-radius:5px; text-align:center; margin-bottom:10px; font-size: 0.9em;">
                     Vertrauen: <b>${r.votes || 0}</b>
-                </div>
+                </div>`;
+
+        // Voting & Maps Buttons
+        popupContent += `
                 <div style="display:flex; gap:5px; margin-bottom:10px;">
                     <button onclick="vote('${r.id}', 1)" style="flex:1; background:#27AE60; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer; font-weight:bold;">✅ Stimmt</button>
                     <button onclick="vote('${r.id}', -1)" style="flex:1; background:#E67E22; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer; font-weight:bold;">❌ Falsch</button>
@@ -141,22 +150,24 @@ function drawMarkersOnMap() {
                     <button style="background:#4285F4; color:white; border:none; padding:10px; width:100%; border-radius:5px; margin-bottom:10px; cursor:pointer; font-weight:bold;">🗺️ Google Maps</button>
                 </a>`;
 
+        // 4. ADMIN SPEZIAL-BEREICH (Wichtig!)
         if (isAdminPage) {
-            // Beweisfoto nur für Admin anzeigen
+            // ZEIGE DAS FOTO, WENN ES EXISTIERT
             if (r.evidencePhoto) {
                 popupContent += `
-                    <div style="margin-top:10px; border-top:1px solid #ddd; padding-top:5px;">
-                        <b style="color:#27AE60;">📸 Beweisfoto:</b><br>
-                        <img src="${r.evidencePhoto}" style="width:100%; border-radius:5px; margin-top:5px; cursor:pointer;" onclick="window.open(this.src)">
+                    <div style="margin-top:10px; border-top:2px solid #27AE60; padding-top:10px;">
+                        <b style="color:#27AE60;">📸 BEWEISFOTO:</b><br>
+                        <img src="${r.evidencePhoto}" style="width:100%; border-radius:5px; margin-top:5px; border:1px solid #ccc; cursor:pointer;" onclick="window.open(this.src)">
                     </div>`;
             }
+
             popupContent += `
-                <div style="border-top:1px solid #ccc; padding-top:10px; margin-top:5px;">
+                <div style="border-top:1px solid #ccc; padding-top:10px; margin-top:10px;">
                     <button onclick="directDelete('${r.id}')" style="background:#e74c3c; color:white; border:none; padding:8px; width:100%; border-radius:5px; cursor:pointer; font-weight:bold; margin-bottom:5px;">🗑️ Endgültig Löschen</button>
                     <button onclick="askForPhoto('${r.id}')" style="background:#3498db; color:white; border:none; padding:8px; width:100%; border-radius:5px; cursor:pointer; font-weight:bold;">📸 Beweis anfordern</button>
                 </div>`;
         } else if (r.needsPhoto) {
-            popupContent += `<p style="color:#D35400; font-size:11px; text-align:center; font-weight:bold;">⚠️ Admin bittet um Beweisfoto vor Ort!</p>`;
+            popupContent += `<p style="color:#D35400; font-size:11px; text-align:center; font-weight:bold; background:#fff3cd; padding:5px; border-radius:5px;">⚠️ Admin bittet um Beweisfoto vor Ort!</p>`;
         }
 
         popupContent += `</div>`; 
